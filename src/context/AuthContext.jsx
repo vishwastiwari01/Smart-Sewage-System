@@ -9,20 +9,28 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
-    
     // Safety timeout — never hang forever
     const timeout = setTimeout(() => {
-      if (mounted) { setUser(null); setLoading(false); }
+      if (mounted) { 
+        console.warn("Auth check timed out after 5s. Wiping state.");
+        setUser(null); 
+        setLoading(false); 
+      }
     }, 5000);
 
     async function getSession() {
       try {
+        console.log("Checking session...");
         const { data, error } = await supabase.auth.getSession();
         if (error) console.error("Auth Session Error:", error);
         
         if (data && data.session && data.session.user) {
+          console.log("Session found, clearing timer and fetching profile...");
+          clearTimeout(timeout); // <--- Clear it BEFORE fetching profile
           await fetchProfile(data.session.user, mounted);
         } else {
+          console.log("No session found, clearing timer.");
+          clearTimeout(timeout); // <--- Clear it on intentional null state
           if (mounted) {
             setUser(null);
             setLoading(false);
@@ -30,6 +38,7 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.error("Critical getSession error:", err);
+        clearTimeout(timeout);
         if (mounted) {
           setUser(null);
           setLoading(false);
