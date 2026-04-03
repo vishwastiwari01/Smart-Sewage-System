@@ -36,23 +36,28 @@ import "./index.css";
 function AdminShell({ user }) {
   const { critCount, warnCount, alerts, dismissAlert } = useSimulation();
   return (
-    <div className="app-shell">
+    // TopBar is fixed/h-12 (48px). We give the shell full height and
+    // push content down with paddingTop so h-full children resolve correctly.
+    <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
       <TopBar critCount={critCount} warnCount={warnCount} user={user} onLogout={() => supabase.auth.signOut()} />
       <AlertToasts alerts={alerts} onDismiss={dismissAlert}/>
-      <div className="app-content" style={{ marginTop:48 }}>
-        <Routes>
-          <Route path="/dashboard"    element={<DashboardPage />} />
-          <Route path="/incidents"    element={<IncidentsPage />} />
-          <Route path="/ai"           element={<AIPage />} />
-          <Route path="/analytics"    element={<AnalyticsPage />} />
-          <Route path="/safety"       element={<SafetyPage />} />
-          <Route path="/sim"          element={<SimPage />} />
-          <Route path="/messages"     element={<MessagesPage />} />
-          <Route path="/twin"         element={<DigitalTwinPage />} />
-          <Route path="/architecture" element={<ArchitecturePage />} />
-          <Route path="/mobile"       element={<MobilePage />} />
-          <Route path="*"             element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+      {/* This div fills the remaining space below the 48px fixed TopBar */}
+      <div style={{ paddingTop:48, flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+        <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+          <Routes>
+            <Route path="/dashboard"    element={<DashboardPage />} />
+            <Route path="/incidents"    element={<IncidentsPage />} />
+            <Route path="/ai"           element={<AIPage />} />
+            <Route path="/analytics"    element={<AnalyticsPage />} />
+            <Route path="/safety"       element={<SafetyPage />} />
+            <Route path="/sim"          element={<SimPage />} />
+            <Route path="/messages"     element={<MessagesPage />} />
+            <Route path="/twin"         element={<DigitalTwinPage />} />
+            <Route path="/architecture" element={<ArchitecturePage />} />
+            <Route path="/mobile"       element={<MobilePage />} />
+            <Route path="*"             element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </div>
       </div>
     </div>
   );
