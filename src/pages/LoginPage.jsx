@@ -51,13 +51,9 @@ export default function LoginPage({ onLogin }) {
         throw signInError;
       }
 
-      // The AuthContext will catch the session and update the role,
-      // it will automatically redirect using the ProtectedRoute wrapper but we gently redirect here:
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
-      
-      const userRole = profile?.role || role; // Fallback to selected role if just signed up
-      if (userRole === 'citizen') navigate('/citizen/dashboard');
-      else if (userRole === 'crew') navigate('/crew/dashboard');
+      // Navigate directly by the role the user clicked — AuthContext will sync the profile in background
+      if (role === 'citizen') navigate('/citizen/dashboard');
+      else if (role === 'crew') navigate('/crew/dashboard');
       else navigate('/dashboard');
 
     } catch (err) {
