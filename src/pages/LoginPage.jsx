@@ -51,14 +51,22 @@ export default function LoginPage({ onLogin }) {
         throw signInError;
       }
 
-      // Navigate directly by the role the user clicked — AuthContext will sync the profile in background
-      if (role === 'citizen') navigate('/citizen/dashboard');
-      else if (role === 'crew') navigate('/crew/dashboard');
-      else navigate('/dashboard');
+      // Wait a moment for AuthContext to detect the session natively
+      setTimeout(async () => {
+        try {
+          const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+          const targetRole = profile?.role || role;
+          
+          if (targetRole === 'citizen') navigate('/citizen/dashboard');
+          else if (targetRole === 'crew') navigate('/crew/dashboard');
+          else navigate('/dashboard');
+        } catch (e) {
+          navigate('/dashboard'); // Ultimate blind fallback
+        }
+      }, 1500);
 
     } catch (err) {
-      setError(err.message || "Invalid credentials. Ensure Supabase is configured.");
-    } finally {
+      setError(err.message || "Invalid credentials or network issue.");
       setLoading(false);
     }
   }
