@@ -31,10 +31,27 @@ export default function AIPage() {
   const [selected, setSelected] = useState(PREDICTIONS[0]);
   const [forecast, setForecast] = useState([]);
   const [running,  setRunning]  = useState(false);
+  const [runCount, setRunCount] = useState(0); // Add a run count to force updates
 
-  useEffect(() => { setForecast(genSpark(selected.probability, 14, 24)); }, [selected, model]);
+  useEffect(() => { setForecast(genSpark(selected.probability, 14, 24)); }, [selected, model, runCount]);
 
-  function runModel() { setRunning(true); setTimeout(()=>setRunning(false), 1800); }
+  function runModel() { 
+    setRunning(true); 
+    setTimeout(() => {
+      setRunning(false);
+      
+      // Randomly tweak the probability by a few percent to show a "fresh" prediction
+      const variance = Math.floor(Math.random() * 5) - 2; // -2 to +2
+      const newProb = Math.max(0, Math.min(100, selected.probability + variance));
+      
+      setSelected(prev => ({ 
+        ...prev, 
+        probability: newProb, 
+        lastUpdated: new Date().toLocaleTimeString([], { hour: "2-digit", minute:"2-digit" }) 
+      }));
+      setRunCount(rc => rc + 1);
+    }, 1800); 
+  }
 
   const p     = selected;
   const color = statusHex(p.probability);

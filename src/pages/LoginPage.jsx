@@ -57,13 +57,13 @@ export default function LoginPage({ onLogin }) {
           const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
           const targetRole = profile?.role || role;
           
-          if (targetRole === 'citizen') navigate('/citizen/dashboard');
-          else if (targetRole === 'crew') navigate('/crew/dashboard');
-          else navigate('/dashboard');
+          if (targetRole === 'citizen') window.location.href = '/citizen/dashboard';
+          else if (targetRole === 'crew') window.location.href = '/crew/dashboard';
+          else window.location.href = '/dashboard';
         } catch (e) {
-          navigate('/dashboard'); // Ultimate blind fallback
+          window.location.href = '/dashboard'; // Ultimate blind fallback
         }
-      }, 1500);
+      }, 500);
 
     } catch (err) {
       setError(err.message || "Invalid credentials or network issue.");
