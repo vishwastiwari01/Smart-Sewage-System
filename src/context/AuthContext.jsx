@@ -11,10 +11,20 @@ export const AuthProvider = ({ children }) => {
     let mounted = true;
 
     async function getSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await fetchProfile(session.user, mounted);
-      } else {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) console.error("Auth Session Error:", error);
+        
+        if (data && data.session && data.session.user) {
+          await fetchProfile(data.session.user, mounted);
+        } else {
+          if (mounted) {
+            setUser(null);
+            setLoading(false);
+          }
+        }
+      } catch (err) {
+        console.error("Critical getSession error:", err);
         if (mounted) {
           setUser(null);
           setLoading(false);
@@ -25,9 +35,17 @@ export const AuthProvider = ({ children }) => {
     getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await fetchProfile(session.user, mounted);
-      } else {
+      try {
+        if (session && session.user) {
+          await fetchProfile(session.user, mounted);
+        } else {
+          if (mounted) {
+            setUser(null);
+            setLoading(false);
+          }
+        }
+      } catch (err) {
+        console.error("Auth listener error:", err);
         if (mounted) {
           setUser(null);
           setLoading(false);
@@ -37,7 +55,9 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       mounted = false;
-      authListener.subscription.unsubscribe();
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe();
+      }
     };
   }, []);
 
