@@ -33,7 +33,7 @@ import TopBar      from "./components/common/TopBar";
 import AlertToasts from "./components/common/AlertToasts";
 import "./index.css";
 
-function AdminShell({ user }) {
+function AdminShell({ user, children }) {
   const { critCount, warnCount, alerts, dismissAlert } = useSimulation();
   const TOPBAR_H = 48;
   return (
@@ -50,19 +50,7 @@ function AdminShell({ user }) {
         display: 'flex',
         flexDirection: 'column',
       }}>
-        <Routes>
-          <Route path="/dashboard"    element={<DashboardPage />} />
-          <Route path="/incidents"    element={<IncidentsPage />} />
-          <Route path="/ai"           element={<AIPage />} />
-          <Route path="/analytics"    element={<AnalyticsPage />} />
-          <Route path="/safety"       element={<SafetyPage />} />
-          <Route path="/sim"          element={<SimPage />} />
-          <Route path="/messages"     element={<MessagesPage />} />
-          <Route path="/twin"         element={<DigitalTwinPage />} />
-          <Route path="/architecture" element={<ArchitecturePage />} />
-          <Route path="/mobile"       element={<MobilePage />} />
-          <Route path="*"             element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+        {children}
       </div>
     </div>
   );
@@ -153,16 +141,16 @@ export default function App() {
         } />
 
         {/* ── ADMIN ── */}
-        <Route path="/dashboard"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/incidents"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/ai"           element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/analytics"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/safety"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/sim"          element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/messages"     element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/twin"         element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/architecture" element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
-        <Route path="/mobile"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/dashboard"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><DashboardPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/incidents"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><IncidentsPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/ai"           element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><AIPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/analytics"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><AnalyticsPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/safety"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><SafetyPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/sim"          element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><SimPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/messages"     element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><MessagesPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/twin"         element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><DigitalTwinPage /></AdminShell></ProtectedRoute>} />
+        <Route path="/architecture" element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><ArchitecturePage /></AdminShell></ProtectedRoute>} />
+        <Route path="/mobile"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user}><MobilePage /></AdminShell></ProtectedRoute>} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

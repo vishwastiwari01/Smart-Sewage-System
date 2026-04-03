@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCrewNotifications } from '../../hooks/useCrewNotifications';
 
-const CARTO = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const CARTO = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
 function loadML() {
   return new Promise((resolve, reject) => {
@@ -38,10 +38,10 @@ function timeAgo(ts) {
 
 // Status pill styles
 const PRIORITY_STYLE = {
-  critical: 'bg-red-900/40 text-red-300 border-red-700',
-  high:     'bg-orange-900/40 text-orange-300 border-orange-700',
-  medium:   'bg-yellow-900/40 text-yellow-300 border-yellow-700',
-  low:      'bg-slate-700 text-slate-300 border-slate-600',
+  critical: 'bg-error-container text-on-error-container border-error/20',
+  high:     'bg-amber-100 text-amber-700 border-amber-200',
+  medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
+  low:      'bg-surface-container-high text-on-surface-variant border-outline-variant/40',
 };
 
 // Job card for sensor alert
@@ -52,8 +52,8 @@ function AlertCard({ alert, onJoin, onResolve, joining }) {
   const isResolved = alert.status === 'resolved';
 
   return (
-    <div className={`bg-slate-800 rounded-2xl border overflow-hidden mb-3
-      ${alert.priority === 'critical' ? 'border-red-700' : 'border-slate-700'}`}>
+    <div className={`bg-white rounded-2xl border overflow-hidden mb-3
+      ${alert.priority === 'critical' ? 'border-red-700' : 'border-outline-variant/20'}`}>
       {/* Priority stripe */}
       {alert.priority === 'critical' && (
         <div className="h-1 bg-gradient-to-r from-red-500 via-rose-500 to-red-500 animate-pulse" />
@@ -64,39 +64,39 @@ function AlertCard({ alert, onJoin, onResolve, joining }) {
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center
-              ${alert.priority === 'critical' ? 'bg-red-900/50' : 'bg-orange-900/30'}`}>
-              <span className="material-symbols-outlined text-base text-red-400">
+              ${alert.priority === 'critical' ? 'bg-error-container' : 'bg-amber-100'}`}>
+              <span className="material-symbols-outlined text-base text-error">
                 {alert.alert_type === 'gas' ? 'air' : 'flood'}
               </span>
             </div>
             <div>
-              <div className="text-sm font-bold text-white capitalize">
+              <div className="text-sm font-bold text-on-surface capitalize">
                 {alert.alert_type || 'Sensor'} Alert
               </div>
-              <div className="text-[10px] text-slate-400">Node: {alert.node_id}</div>
+              <div className="text-[10px] text-outline">Node: {alert.node_id}</div>
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase ${PRIORITY_STYLE[alert.priority] || PRIORITY_STYLE.medium}`}>
               {alert.priority}
             </span>
-            <span className="text-[9px] text-slate-500">{timeAgo(alert.created_at)}</span>
+            <span className="text-[9px] text-outline">{timeAgo(alert.created_at)}</span>
           </div>
         </div>
 
         {/* Sensor Readings */}
         <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="bg-slate-700/40 rounded-xl p-2.5">
-            <div className="text-[9px] text-slate-400 uppercase tracking-wider mb-1">💧 Water Level</div>
-            <div className="font-bold text-white text-sm">{(alert.water_level || 0).toFixed(1)}%</div>
+          <div className="bg-surface-container rounded-xl p-2.5">
+            <div className="text-[9px] text-outline uppercase tracking-wider mb-1">💧 Water Level</div>
+            <div className="font-bold text-on-surface text-sm">{(alert.water_level || 0).toFixed(1)}%</div>
             <div className="mt-1.5 h-1 bg-slate-600 rounded-full overflow-hidden">
               <div className="h-full bg-blue-500 rounded-full transition-all"
                 style={{ width: `${Math.min(alert.water_level || 0, 100)}%` }} />
             </div>
           </div>
-          <div className="bg-slate-700/40 rounded-xl p-2.5">
-            <div className="text-[9px] text-slate-400 uppercase tracking-wider mb-1">☁️ Gas Level</div>
-            <div className="font-bold text-white text-sm">{(alert.gas_level || 0).toFixed(1)}%</div>
+          <div className="bg-surface-container rounded-xl p-2.5">
+            <div className="text-[9px] text-outline uppercase tracking-wider mb-1">☁️ Gas Level</div>
+            <div className="font-bold text-on-surface text-sm">{(alert.gas_level || 0).toFixed(1)}%</div>
             <div className="mt-1.5 h-1 bg-slate-600 rounded-full overflow-hidden">
               <div className="h-full bg-orange-500 rounded-full transition-all"
                 style={{ width: `${Math.min(alert.gas_level || 0, 100)}%` }} />
@@ -106,14 +106,14 @@ function AlertCard({ alert, onJoin, onResolve, joining }) {
 
         {/* Zone + Actions */}
         <div className="flex items-center gap-1 mb-3">
-          <span className="material-symbols-outlined text-sm text-slate-500">location_on</span>
-          <span className="text-xs text-slate-400">{alert.zone} · Hyderabad</span>
+          <span className="material-symbols-outlined text-sm text-outline">location_on</span>
+          <span className="text-xs text-outline">{alert.zone} · Hyderabad</span>
         </div>
 
         <div className="flex gap-2">
           {/* Navigate button */}
           <a href={mapsUrl(lat, lng, alert.node_id)} target="_blank" rel="noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95 transition border border-slate-600">
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-surface-container-high text-on-surface text-xs font-bold rounded-xl active:scale-95 transition border border-outline-variant/40">
             <span className="material-symbols-outlined text-sm">directions</span>
             Navigate
           </a>
@@ -153,8 +153,8 @@ function ReportCard({ report, onJoin, onResolve, joining, crewId }) {
   const isResolved = report.status === 'resolved';
 
   return (
-    <div className={`bg-slate-800 rounded-2xl border overflow-hidden mb-3
-      ${report.status === 'pending' ? 'border-amber-700/50' : 'border-slate-700'}`}>
+    <div className={`bg-white rounded-2xl border overflow-hidden mb-3
+      ${report.status === 'pending' ? 'border-amber-700/50' : 'border-outline-variant/20'}`}>
       
       {/* NEW badge for unassigned */}
       {report.status === 'pending' && (
@@ -169,8 +169,8 @@ function ReportCard({ report, onJoin, onResolve, joining, crewId }) {
               style={{ minHeight: 100 }} />
           </div>
         ) : (
-          <div className="w-16 shrink-0 bg-slate-700/50 flex items-center justify-center">
-            <span className="material-symbols-outlined text-2xl text-slate-500">image_not_supported</span>
+          <div className="w-16 shrink-0 bg-surface-container flex items-center justify-center">
+            <span className="material-symbols-outlined text-2xl text-outline">image_not_supported</span>
           </div>
         )}
 
@@ -179,33 +179,33 @@ function ReportCard({ report, onJoin, onResolve, joining, crewId }) {
           <div className="flex justify-between items-start mb-1.5">
             <div className="flex items-center gap-1.5">
               {report.status === 'pending' && (
-                <span className="text-[9px] font-bold bg-amber-900/40 text-amber-300 border border-amber-700 px-1.5 py-0.5 rounded-full uppercase animate-pulse">
+                <span className="text-[9px] font-bold bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full uppercase animate-pulse">
                   New Job
                 </span>
               )}
               {isMyJob && report.status === 'assigned' && (
-                <span className="text-[9px] font-bold bg-blue-900/40 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded-full uppercase">
+                <span className="text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full uppercase">
                   Your Job
                 </span>
               )}
               {isResolved && (
-                <span className="text-[9px] font-bold bg-green-900/40 text-green-300 border border-green-700 px-1.5 py-0.5 rounded-full uppercase">
+                <span className="text-[9px] font-bold bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full uppercase">
                   Resolved
                 </span>
               )}
             </div>
-            <span className="text-[9px] text-slate-500">{timeAgo(report.created_at)}</span>
+            <span className="text-[9px] text-outline">{timeAgo(report.created_at)}</span>
           </div>
 
           {/* Description */}
-          <p className="text-xs font-medium text-slate-200 line-clamp-2 leading-tight mb-2">
+          <p className="text-xs font-medium text-on-surface line-clamp-2 leading-tight mb-2">
             {report.description}
           </p>
 
           {/* Location */}
           <div className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[12px] text-slate-500">location_on</span>
-            <span className="text-[10px] text-slate-400">
+            <span className="material-symbols-outlined text-[12px] text-outline">location_on</span>
+            <span className="text-[10px] text-outline">
               {report.zone || 'Hyderabad'}
               {lat && lng ? ` · ${parseFloat(lat).toFixed(4)}°N, ${parseFloat(lng).toFixed(4)}°E` : ''}
             </span>
@@ -217,7 +217,7 @@ function ReportCard({ report, onJoin, onResolve, joining, crewId }) {
       <div className="px-3 pb-3 flex gap-2 mt-1">
         {/* Navigate */}
         <a href={mapsUrl(lat, lng)} target="_blank" rel="noreferrer"
-          className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95 transition border border-slate-600">
+          className="flex items-center gap-1.5 px-3 py-2.5 bg-surface-container-high text-on-surface text-xs font-bold rounded-xl active:scale-95 transition border border-outline-variant/40">
           <span className="material-symbols-outlined text-sm">directions</span>
           Navigate
         </a>
@@ -242,7 +242,7 @@ function ReportCard({ report, onJoin, onResolve, joining, crewId }) {
             Mark Done
           </button>
         ) : (
-          <div className="flex-1 py-2.5 bg-slate-700/40 text-slate-500 text-xs font-medium rounded-xl text-center">
+          <div className="flex-1 py-2.5 bg-surface-container text-outline text-xs font-medium rounded-xl text-center">
             Assigned to another crew
           </div>
         )}
@@ -418,59 +418,59 @@ export default function CrewDashboard() {
   const acceptedAlerts  = alerts.filter(a => a.status === 'acknowledged' && a.acknowledged_by === user?.id);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-900">
+    <div className="flex flex-col min-h-screen bg-background">
 
       {/* Header */}
-      <div className="bg-slate-800 px-4 py-3 flex justify-between items-center border-b border-slate-700 shrink-0">
+      <div className="bg-white px-4 py-3 flex justify-between items-center border-b border-outline-variant/20 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
             <span className="material-symbols-outlined text-primary">engineering</span>
           </div>
           <div>
-            <h1 className="font-bold text-white tracking-tight">Crew Dispatch</h1>
-            <p className="text-[10px] text-slate-400">{crewZone} · {user?.email?.split('@')[0]}</p>
+            <h1 className="font-bold text-on-surface tracking-tight">Crew Dispatch</h1>
+            <p className="text-[10px] text-outline">{crewZone} · {user?.email?.split('@')[0]}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {newCount > 0 && (
-            <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse flex items-center gap-1">
+            <div className="bg-[#ef4444] text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse flex items-center gap-1">
               <span className="material-symbols-outlined text-xs">notifications_active</span>
               {newCount} New
             </div>
           )}
-          <button onClick={signOut} className="text-xs bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg text-slate-300 active:scale-95 transition font-medium">
+          <button onClick={signOut} className="text-xs bg-surface-container-high border border-outline-variant/40 px-3 py-1.5 rounded-lg text-on-surface-variant active:scale-95 transition font-medium">
             Sign Out
           </button>
         </div>
       </div>
 
       {/* Map */}
-      <div className="h-36 relative border-b-2 border-primary/30 shrink-0 bg-slate-900">
+      <div className="h-36 relative border-b-2 border-primary/30 shrink-0 bg-background">
         <div ref={containerRef} className="absolute inset-0" />
-        <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1.5 backdrop-blur">
+        <div className="absolute top-2 left-2 bg-white/90 text-on-surface text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1.5 backdrop-blur">
           <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
           Live Map · {crewZone}
         </div>
         {/* Map legend */}
-        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[9px] px-2 py-1 rounded-lg backdrop-blur flex gap-3">
+        <div className="absolute bottom-2 right-2 bg-white/90 text-on-surface text-[9px] px-2 py-1 rounded-lg backdrop-blur flex gap-3">
           <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-400 rounded-full inline-block"/>Citizen Report</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-400 rounded-full inline-block"/>Assigned</span>
         </div>
       </div>
 
       {/* Stats strips */}
-      <div className="bg-slate-800 px-4 py-2 flex gap-4 border-b border-slate-700 shrink-0 overflow-x-auto">
+      <div className="bg-white px-4 py-2 flex gap-4 border-b border-outline-variant/20 shrink-0 overflow-x-auto">
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-          <span className="text-xs text-slate-300">{activeAlerts.length} Sensor Alert{activeAlerts.length !== 1 ? 's' : ''}</span>
+          <span className="w-2 h-2 #ef4444 rounded-full animate-pulse" />
+          <span className="text-xs text-on-surface-variant">{activeAlerts.length} Sensor Alert{activeAlerts.length !== 1 ? 's' : ''}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="w-2 h-2 bg-amber-400 rounded-full" />
-          <span className="text-xs text-slate-300">{pendingReports.length} New Report{pendingReports.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-on-surface-variant">{pendingReports.length} New Report{pendingReports.length !== 1 ? 's' : ''}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="w-2 h-2 bg-blue-400 rounded-full" />
-          <span className="text-xs text-slate-300">{myReports.length} My Job{myReports.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-on-surface-variant">{myReports.length} My Job{myReports.length !== 1 ? 's' : ''}</span>
         </div>
         <button onClick={() => { setNewCount(0); loadData(); }}
           className="ml-auto text-[10px] text-primary font-medium flex items-center gap-1 shrink-0">
@@ -479,14 +479,14 @@ export default function CrewDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-slate-800 border-b border-slate-700 shrink-0">
+      <div className="flex bg-white border-b border-outline-variant/20 shrink-0">
         {[
           { id: 'reports', label: 'Citizen Reports', count: reports.length, icon: 'report', badge: pendingReports.length },
           { id: 'alerts',  label: 'Sensor Alerts',   count: alerts.length,  icon: 'sensors', badge: activeAlerts.length },
         ].map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); setNewCount(0); }}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold border-b-2 transition-all
-              ${tab === t.id ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}>
+              ${tab === t.id ? 'border-primary text-primary' : 'border-transparent text-outline'}`}>
             <span className="material-symbols-outlined text-sm">{t.icon}</span>
             {t.label}
             {t.badge > 0 && (
@@ -500,7 +500,7 @@ export default function CrewDashboard() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 bg-slate-900">
+      <div className="flex-1 overflow-y-auto p-4 bg-background">
 
         {/* RLS setup hint */}
         {fetchError === 'rls' && (
@@ -518,7 +518,7 @@ export default function CrewDashboard() {
         {loading && (
           <div className="flex flex-col items-center justify-center mt-12 gap-3">
             <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"/>
-            <span className="text-sm text-slate-400">Loading jobs…</span>
+            <span className="text-sm text-outline">Loading jobs…</span>
           </div>
         )}
 
@@ -555,9 +555,9 @@ export default function CrewDashboard() {
 
             {reports.length === 0 && !loading && (
               <div className="flex flex-col items-center justify-center mt-16 text-center px-6">
-                <span className="material-symbols-outlined text-5xl text-slate-600 mb-3">inbox</span>
-                <p className="text-sm font-medium text-slate-400">No reports yet</p>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                <span className="material-symbols-outlined text-5xl text-outline-variant mb-3">inbox</span>
+                <p className="text-sm font-medium text-outline">No reports yet</p>
+                <p className="text-xs text-outline mt-1.5 leading-relaxed">
                   When citizens submit reports or the simulation broadcasts alerts, they will appear here as jobs ready to accept.
                 </p>
               </div>
@@ -566,7 +566,7 @@ export default function CrewDashboard() {
             {/* Resolved jobs */}
             {reports.filter(r => r.status === 'resolved' && r.assigned_to === user?.id).length > 0 && (
               <div className="mt-2">
-                <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">Completed Today</h3>
+                <h3 className="text-[11px] font-bold text-outline uppercase tracking-wider mb-3">Completed Today</h3>
                 {reports.filter(r => r.status === 'resolved' && r.assigned_to === user?.id).map(r => (
                   <ReportCard key={r.id} report={r} onJoin={joinReport}
                     onResolve={resolveReport} joining={joining} crewId={user?.id} />
@@ -595,8 +595,8 @@ export default function CrewDashboard() {
             {activeAlerts.length > 0 && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"/>
-                  <h3 className="text-[11px] font-bold text-red-400 uppercase tracking-wider">Live Sensor Alerts</h3>
+                  <span className="w-2 h-2 #ef4444 rounded-full animate-pulse"/>
+                  <h3 className="text-[11px] font-bold text-error uppercase tracking-wider">Live Sensor Alerts</h3>
                 </div>
                 {activeAlerts.map(a => (
                   <AlertCard key={a.id} alert={a} onJoin={joinAlert} onResolve={resolveAlert} joining={joining} />
@@ -606,9 +606,9 @@ export default function CrewDashboard() {
 
             {alerts.length === 0 && !loading && (
               <div className="flex flex-col items-center justify-center mt-16 text-center px-6">
-                <span className="material-symbols-outlined text-5xl text-slate-600 mb-3">sensors_off</span>
-                <p className="text-sm font-medium text-slate-400">No sensor alerts</p>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                <span className="material-symbols-outlined text-5xl text-outline-variant mb-3">sensors_off</span>
+                <p className="text-sm font-medium text-outline">No sensor alerts</p>
+                <p className="text-xs text-outline mt-1.5 leading-relaxed">
                   Ask admin to switch to a critical scenario in the Simulation page and enable "Broadcast to Crew" to send live alerts here.
                 </p>
               </div>
