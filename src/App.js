@@ -1,10 +1,14 @@
-import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import { supabase } from "./lib/supabase";
 import { useSimulation } from "./hooks/useSimulation";
-import TopBar        from "./components/common/TopBar";
-import AlertToasts   from "./components/common/AlertToasts";
+
+// General Pages
 import LandingPage   from "./pages/LandingPage";
 import LoginPage     from "./pages/LoginPage";
+import NotFoundPage  from "./pages/NotFoundPage";
+
+// Admin Pages
 import DashboardPage from "./pages/DashboardPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import AIPage        from "./pages/AIPage";
@@ -15,14 +19,25 @@ import MessagesPage  from "./pages/MessagesPage";
 import DigitalTwinPage   from "./pages/DigitalTwinPage";
 import ArchitecturePage  from "./pages/ArchitecturePage";
 import MobilePage        from "./pages/MobilePage";
-import NotFoundPage      from "./pages/NotFoundPage";
+
+// Role Components
+import ProtectedRoute    from "./components/ProtectedRoute";
+import CitizenDashboard  from "./pages/citizen/CitizenDashboard";
+import ReportIssue       from "./pages/citizen/ReportIssue";
+import MyReports         from "./pages/citizen/MyReports";
+import CrewDashboard     from "./pages/crew/CrewDashboard";
+import IncidentDetail    from "./pages/crew/IncidentDetail";
+
+// Common
+import TopBar        from "./components/common/TopBar";
+import AlertToasts   from "./components/common/AlertToasts";
 import "./index.css";
 
-function ProtectedShell({ user, onLogout }) {
+function AdminShell({ user }) {
   const { critCount, warnCount, alerts, dismissAlert } = useSimulation();
   return (
     <div className="app-shell">
-      <TopBar critCount={critCount} warnCount={warnCount} user={user} onLogout={onLogout}/>
+      <TopBar critCount={critCount} warnCount={warnCount} user={user} onLogout={() => supabase.auth.signOut()} />
       <AlertToasts alerts={alerts} onDismiss={dismissAlert}/>
       <div className="app-content" style={{ marginTop:48 }}>
         <Routes>
@@ -44,22 +59,37 @@ function ProtectedShell({ user, onLogout }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const { user, loading } = useAuth();
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background">Loading Application...</div>;
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/"       element={<LandingPage />} />
         <Route path="/login"  element={
-          user ? <Navigate to="/dashboard" replace/> : <LoginPage onLogin={setUser}/>
+          user ? <Navigate to="/dashboard" replace/> : <LoginPage />
         }/>
+
+        {/* CITIZEN ROUTES */}
+        <Route path="/citizen/dashboard" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenDashboard /></ProtectedRoute>} />
+        <Route path="/citizen/report"    element={<ProtectedRoute allowedRoles={['citizen']}><ReportIssue /></ProtectedRoute>} />
+        <Route path="/citizen/my-reports" element={<ProtectedRoute allowedRoles={['citizen']}><MyReports /></ProtectedRoute>} />
+
+        {/* CREW ROUTES */}
+        <Route path="/crew/dashboard" element={<ProtectedRoute allowedRoles={['crew', 'admin']}><CrewDashboard /></ProtectedRoute>} />
+        <Route path="/crew/incident/:id" element={<ProtectedRoute allowedRoles={['crew', 'admin']}><IncidentDetail /></ProtectedRoute>} />
+
+        {/* ADMIN ROUTES */}
         <Route path="/*" element={
-          user
-            ? <ProtectedShell user={user} onLogout={()=>setUser(null)}/>
-            : <Navigate to="/login" replace/>
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminShell user={user} />
+          </ProtectedRoute>
         }/>
+        
         <Route path="*" element={<NotFoundPage />}/>
       </Routes>
     </BrowserRouter>
   );
 }
+

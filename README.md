@@ -82,4 +82,18 @@ The `vercel.json` file handles SPA routing so refreshing any route works.
 
 ---
 
+## 🔧 Developer Setup: Supabase + Wokwi Integration
+
+1. Create a Supabase project at [supabase.com](https://supabase.com).
+2. Copy `.env.example` to `.env.local` and add your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+3. Run the SQL schema from `supabase/migrations/20240401000000_smartflow_schema.sql` in the Supabase SQL Editor.
+4. Set up the `citizen-reports` Storage bucket and ensure public read access.
+5. Deploy the Edge function via Supabase CLI:
+   ```bash
+   supabase functions deploy trigger-alert --project-ref your-project-id
+   ```
+6. In Wokwi or ESP32 simulation, point the HTTP POST to your Supabase Edge Function URL.
+
+---
+
 *SmartFlow © 2026 · GHMC Intelligence Division · B.Tech Final Year Project*

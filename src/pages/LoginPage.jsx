@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 
 const ROLES = [
   { id:"admin",  label:"Admin",       sub:"GHMC Municipal Officer",  icon:"admin_panel_settings", email:"admin@ghmc.gov.in",    pass:"admin123" },
@@ -22,19 +23,32 @@ export default function LoginPage({ onLogin }) {
     setError("");
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true); setError("");
-    const r = ROLES.find(r => r.id === role);
-    setTimeout(() => {
-      if (email === r.email && pass === r.pass) {
-        onLogin({ name: r.label === "Admin" ? "Vishwas Tiwari" : r.label === "Field Crew" ? "Ravi Kumar" : "Mohammed Riyaz", role: r.label, roleId: r.id });
-        navigate("/dashboard");
-      } else {
-        setError("Invalid credentials. Check the hint below.");
-        setLoading(false);
-      }
-    }, 800);
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: pass,
+      });
+
+      if (signInError) throw signInError;
+
+      // The AuthContext will catch the session and update the role,
+      // it will automatically redirect using the ProtectedRoute wrapper but we can gently redirect here:
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+      
+      const userRole = profile?.role || 'admin';
+      if (userRole === 'citizen') navigate('/citizen/dashboard');
+      else if (userRole === 'crew') navigate('/crew/dashboard');
+      else navigate('/dashboard');
+
+    } catch (err) {
+      setError(err.message || "Invalid credentials. Ensure Supabase is configured.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const selectedRole = ROLES.find(r => r.id === role);
