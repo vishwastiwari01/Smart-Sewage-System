@@ -9,6 +9,11 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
+    
+    // Safety timeout — never hang forever
+    const timeout = setTimeout(() => {
+      if (mounted) { setUser(null); setLoading(false); }
+    }, 5000);
 
     async function getSession() {
       try {
@@ -55,6 +60,7 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
       if (authListener && authListener.subscription) {
         authListener.subscription.unsubscribe();
       }
