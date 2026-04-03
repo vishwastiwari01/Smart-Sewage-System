@@ -1,44 +1,59 @@
-import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 
-export default function ProtectedRoute({ children, allowedRoles }) {
+// Tiny inline spinner — no external deps
+function Spinner() {
+  return (
+    <div style={{
+      minHeight:'100vh', display:'flex', flexDirection:'column',
+      alignItems:'center', justifyContent:'center', gap:12,
+      background:'var(--background, #fafafa)'
+    }}>
+      <div style={{
+        width:32, height:32, border:'3px solid #e2e8f0',
+        borderTopColor:'#0066CC', borderRadius:'50%',
+        animation:'spin 0.7s linear infinite'
+      }}/>
+      <span style={{ fontSize:13, color:'#94a3b8' }}>Loading…</span>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { user, loading, signOut } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"/>
-          <div className="text-sm text-on-surface-variant">Loading…</div>
-        </div>
-      </div>
-    );
-  }
+  // Still resolving session — show spinner (this should be very brief, <500ms)
+  if (loading) return <Spinner />;
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  // Not logged in → go to login
+  if (!user) return <Navigate to="/login" replace />;
 
-  // If role hasn't loaded yet (rare, but possible) — show escape hatch
-  if (allowedRoles && !user.role) {
+  // Logged in but role hasn't loaded yet (DB delay) — brief spinner with escape
+  if (!user.role) {
     return (
-      <div className="flex flex-col h-screen items-center justify-center gap-4 bg-background p-6 text-center">
-        <span className="material-symbols-outlined text-4xl text-outline">error</span>
-        <div className="text-sm font-medium text-on-surface">Profile sync issue — role not found.</div>
-        <div className="text-xs text-outline max-w-xs">This usually resolves on sign-out and back in. Your account exists but the role profile may not have been created yet.</div>
-        <button
-          onClick={signOut || (() => { supabase.auth.signOut(); window.location.href = '/login'; })}
-          className="px-6 py-2 bg-primary text-white rounded-xl text-sm font-bold"
-        >
-          Sign Out & Try Again
+      <div style={{
+        minHeight:'100vh', display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center', gap:16,
+        background:'var(--background, #fafafa)'
+      }}>
+        <div style={{
+          width:32, height:32, border:'3px solid #e2e8f0',
+          borderTopColor:'#0066CC', borderRadius:'50%',
+          animation:'spin 0.7s linear infinite'
+        }}/>
+        <span style={{ fontSize:13, color:'#94a3b8' }}>Loading profile…</span>
+        <button onClick={signOut}
+          style={{ fontSize:12, color:'#64748b', textDecoration:'underline', background:'none', border:'none', cursor:'pointer' }}>
+          Sign out and try again
         </button>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  // Wrong role → redirect to their correct home
+  if (allowedRoles.length && !allowedRoles.includes(user.role)) {
     if (user.role === 'citizen') return <Navigate to="/citizen/dashboard" replace />;
     if (user.role === 'crew')    return <Navigate to="/crew/dashboard" replace />;
     return <Navigate to="/dashboard" replace />;

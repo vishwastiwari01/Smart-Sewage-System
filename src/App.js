@@ -36,12 +36,9 @@ import "./index.css";
 function AdminShell({ user }) {
   const { critCount, warnCount, alerts, dismissAlert } = useSimulation();
   return (
-    // TopBar is fixed/h-12 (48px). We give the shell full height and
-    // push content down with paddingTop so h-full children resolve correctly.
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
       <TopBar critCount={critCount} warnCount={warnCount} user={user} onLogout={() => supabase.auth.signOut()} />
       <AlertToasts alerts={alerts} onDismiss={dismissAlert}/>
-      {/* This div fills the remaining space below the 48px fixed TopBar */}
       <div style={{ paddingTop:48, flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
         <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
           <Routes>
@@ -63,89 +60,102 @@ function AdminShell({ user }) {
   );
 }
 
-function RoleRouter({ user }) {
-  if (!user.role) {
-    // Profile exists but role not loaded yet — show minimal spinner
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"/>
-          <span className="text-sm text-outline">Loading profile…</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (user.role === 'citizen') return <Navigate to="/citizen/dashboard" replace />;
-  if (user.role === 'crew')    return <Navigate to="/crew/dashboard" replace />;
-  return <Navigate to="/dashboard" replace />;
-}
-
-export default function App() {
+// Redirects already-logged-in users away from login/landing
+// Shows a tiny spinner ONLY on the login page if auth is still resolving
+function AuthGate({ children }) {
   const { user, loading } = useAuth();
 
   if (loading) {
+    // Show the login/landing page immediately — just disable the submit button
+    // via a tiny overlay so the user sees the UI right away
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"/>
-          <span className="text-sm text-outline">SmartFlow is loading…</span>
+      <>
+        {children}
+        <div style={{
+          position:'fixed', inset:0, background:'rgba(255,255,255,0.7)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999
+        }}>
+          <div style={{ textAlign:'center' }}>
+            <div style={{
+              width:32, height:32, border:'3px solid #e2e8f0',
+              borderTopColor:'#0066CC', borderRadius:'50%',
+              animation:'spin 0.7s linear infinite', margin:'0 auto 8px'
+            }}/>
+            <div style={{ fontSize:12, color:'#94a3b8' }}>Checking session…</div>
+          </div>
         </div>
-      </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </>
     );
   }
+
+  // If already logged in, go to dashboard
+  if (user) {
+    if (user.role === 'citizen') return <Navigate to="/citizen/dashboard" replace />;
+    if (user.role === 'crew')    return <Navigate to="/crew/dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
+export default function App() {
+  // NOTE: loading is NOT checked here — BrowserRouter mounts immediately
+  // so public pages (login, landing) appear instantly with zero delay.
+  // ProtectedRoute handles the auth check for private routes.
+  const { user } = useAuth();
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
+        {/* ── PUBLIC — render INSTANTLY, no loading gate ── */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={
-          user ? <RoleRouter user={user} /> : <LoginPage />
-        }/>
+          <AuthGate><LoginPage /></AuthGate>
+        } />
 
-        {/* CITIZEN ROUTES */}
+        {/* ── CITIZEN ── */}
         <Route path="/citizen/dashboard" element={
           <ProtectedRoute allowedRoles={['citizen']}>
             <CitizenDashboard />
           </ProtectedRoute>
-        }/>
+        } />
         <Route path="/citizen/report" element={
           <ProtectedRoute allowedRoles={['citizen']}>
             <ReportIssue />
           </ProtectedRoute>
-        }/>
+        } />
         <Route path="/citizen/my-reports" element={
           <ProtectedRoute allowedRoles={['citizen']}>
             <MyReports />
           </ProtectedRoute>
-        }/>
+        } />
 
-        {/* CREW ROUTES */}
+        {/* ── CREW ── */}
         <Route path="/crew/dashboard" element={
           <ProtectedRoute allowedRoles={['crew', 'admin']}>
             <CrewDashboard />
           </ProtectedRoute>
-        }/>
+        } />
         <Route path="/crew/incident/:id" element={
           <ProtectedRoute allowedRoles={['crew', 'admin']}>
             <IncidentDetail />
           </ProtectedRoute>
-        }/>
+        } />
 
-        {/* ADMIN ROUTES — must be BELOW citizen/crew to not catch them */}
-        <Route path="/dashboard"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/incidents"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/ai"           element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/analytics"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/safety"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/sim"          element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/messages"     element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/twin"         element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/architecture" element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
-        <Route path="/mobile"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>}/>
+        {/* ── ADMIN ── */}
+        <Route path="/dashboard"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/incidents"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/ai"           element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/analytics"    element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/safety"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/sim"          element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/messages"     element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/twin"         element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/architecture" element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
+        <Route path="/mobile"       element={<ProtectedRoute allowedRoles={['admin']}><AdminShell user={user} /></ProtectedRoute>} />
 
-        <Route path="*" element={<NotFoundPage />}/>
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

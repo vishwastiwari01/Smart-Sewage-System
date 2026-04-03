@@ -9,8 +9,9 @@ export const AuthProvider = ({ children }) => {
   const mountedRef = useRef(true);
 
   const fetchProfile = useCallback(async (authUser) => {
+    if (!mountedRef.current) return;
     try {
-      const { data: profile, error } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
@@ -21,18 +22,23 @@ export const AuthProvider = ({ children }) => {
       if (profile) {
         setUser({ ...authUser, ...profile });
       } else {
-        // Profile not yet created (new account race). Retry once after 1.5s.
-        setTimeout(async () => {
-          if (!mountedRef.current) return;
-          const { data: retry } = await supabase
-            .from('profiles').select('*').eq('id', authUser.id).single();
-          if (mountedRef.current) {
-            setUser(retry ? { ...authUser, ...retry } : { ...authUser, role: null });
-          }
-        }, 1500);
+        // Profile doesn't exist yet (new user race) — create it then retry
+        await supabase.from('profiles').upsert({
+          id: authUser.id,
+          email: authUser.email,
+          role: 'citizen',     // default role
+          name: authUser.email.split('@')[0],
+        }, { onConflict: 'id' });
+
+        const { data: retry } = await supabase
+          .from('profiles').select('*').eq('id', authUser.id).single();
+
+        if (mountedRef.current) {
+          setUser(retry ? { ...authUser, ...retry } : { ...authUser, role: 'citizen' });
+        }
       }
     } catch (err) {
-      console.error('fetchProfile error:', err);
+      console.error('[Auth] fetchProfile error:', err.message);
       if (mountedRef.current) setUser({ ...authUser, role: null });
     } finally {
       if (mountedRef.current) setLoading(false);
@@ -42,14 +48,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     mountedRef.current = true;
 
-    // ─── Use ONLY onAuthStateChange ───────────────────────────────────────────
-    // Supabase v2 fires INITIAL_SESSION immediately with current cached session.
-    // Do NOT also call getSession() — that creates a race condition where
-    // setLoading(true) fires after setLoading(false).
+    // onAuthStateChange fires IMMEDIATELY (synchronous) for cached sessions.
+    // Do NOT also call getSession() — that creates a double-fire race condition.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mountedRef.current) return;
-        console.log('[Auth]', event, session?.user?.email ?? 'no user');
 
         if (event === 'SIGNED_OUT' || !session?.user) {
           setUser(null);
@@ -57,23 +60,18 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        // For INITIAL_SESSION, TOKEN_REFRESHED, SIGNED_IN — fetch profile
-        // Don't setLoading(true) here — it's already true from useState init.
-        // Only set it true again on SIGNED_IN (new login)
-        if (event === 'SIGNED_IN') setLoading(true);
-
-        await fetchProfile(session.user);
+        // fetchProfile is async — loading will be set false inside it
+        fetchProfile(session.user);
       }
     );
 
-    // Hard safety net — if still loading after 8s, give up and go to login
+    // Hard safety timeout — if Supabase is down or slow, stop blocking the UI
     const safety = setTimeout(() => {
-      if (mountedRef.current && loading) {
-        console.warn('[Auth] Safety timeout — forcing null state');
+      if (mountedRef.current) {
         setUser(null);
         setLoading(false);
       }
-    }, 8000);
+    }, 5000); // 5s max wait
 
     return () => {
       mountedRef.current = false;
@@ -84,6 +82,7 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     setUser(null);
+    setLoading(false);
     await supabase.auth.signOut();
     window.location.href = '/login';
   }, []);
