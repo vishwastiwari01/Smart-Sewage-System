@@ -68,7 +68,9 @@ export default function App() {
       <Routes>
         <Route path="/"       element={<LandingPage />} />
         <Route path="/login"  element={
-          user ? <Navigate to="/dashboard" replace/> : <LoginPage />
+          user 
+            ? <Navigate to={user.role === 'citizen' ? '/citizen/dashboard' : user.role === 'crew' ? '/crew/dashboard' : '/dashboard'} replace/>
+            : <LoginPage />
         }/>
 
         {/* CITIZEN ROUTES */}

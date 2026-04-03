@@ -6,18 +6,23 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center">Loading Auth...</div>;
+    return <div className="flex h-screen items-center justify-center text-sm text-gray-500">Loading Auth...</div>;
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  // If user is authenticated but profile/role hasn't synced yet, wait briefly
+  if (allowedRoles && !user.role) {
+    return <div className="flex h-screen items-center justify-center text-sm text-gray-500">Loading profile...</div>;
+  }
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // If the user hasn't proper role, redirect them to their respective dashboard
+    // Redirect to their correct dashboard based on actual role
     if (user.role === 'citizen') return <Navigate to="/citizen/dashboard" replace />;
     if (user.role === 'crew') return <Navigate to="/crew/dashboard" replace />;
-    return <Navigate to="/dashboard" replace />; // Admin defaults to main dashboard
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
