@@ -71,7 +71,15 @@ export default function App() {
           !user ? (
             <LoginPage />
           ) : !user.role ? (
-            <div className="min-h-screen flex items-center justify-center bg-background">Loading profile...</div>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+              <div className="text-sm text-gray-500">Loading profile...</div>
+              <button 
+                onClick={() => { supabase.auth.signOut(); window.location.reload(); }} 
+                className="px-4 py-2 bg-primary/10 text-primary text-xs font-bold rounded-lg"
+              >
+                Sign Out / Reset
+              </button>
+            </div>
           ) : (
             <Navigate to={user.role === 'citizen' ? '/citizen/dashboard' : user.role === 'crew' ? '/crew/dashboard' : '/dashboard'} replace />
           )

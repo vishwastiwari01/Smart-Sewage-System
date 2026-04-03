@@ -52,7 +52,17 @@ export default function LoginPage({ onLogin }) {
       }
 
       // Auth success! App.js will observe 'user' and 'user.role' and navigate accordingly.
-      // We keep 'loading' true here so the spinner persists during the transition.
+      // FAIL-SAFE: If the router doesn't transition in 3 seconds, force it.
+      setTimeout(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+          const targetRole = profile?.role || role;
+          if (targetRole === 'citizen') window.location.href = '/citizen/dashboard';
+          else if (targetRole === 'crew') window.location.href = '/crew/dashboard';
+          else window.location.href = '/dashboard';
+        }
+      }, 3000);
 
     } catch (err) {
       setError(err.message || "Invalid credentials or network issue.");

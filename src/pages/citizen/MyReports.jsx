@@ -11,17 +11,24 @@ export default function MyReports() {
 
   useEffect(() => {
     async function fetchReports() {
-      const { data } = await supabase
-        .from('reports')
-        .select('*')
-        .eq('citizen_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (data) setReports(data);
-      setLoading(false);
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('reports')
+          .select('*')
+          .eq('citizen_id', user?.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        if (data) setReports(data);
+      } catch (err) {
+        console.error("Error fetching reports:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-    fetchReports();
-  }, [user.id]);
+    if (user?.id) fetchReports();
+  }, [user?.id]);
 
   return (
     <div className="flex flex-col h-full bg-surface">
