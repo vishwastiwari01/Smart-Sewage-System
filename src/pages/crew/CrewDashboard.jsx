@@ -1,15 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useRealtimeAlerts } from '../../hooks/useRealtimeAlerts';
-import maplibregl from 'maplibre-gl';
+
+const CARTO = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+function loadML() {
+  return new Promise((resolve, reject) => {
+    if (window.maplibregl) { resolve(window.maplibregl); return; }
+    if (!document.getElementById("ml-css")) {
+      const l = document.createElement("link");
+      l.id = "ml-css"; l.rel = "stylesheet";
+      l.href = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css";
+      document.head.appendChild(l);
+    }
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js";
+    s.onload = () => resolve(window.maplibregl);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
 
 export default function CrewDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState([]);
-  const [map, setMap] = useState(null);
+  const mapRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Initial fetch of active alerts
   useEffect(() => {
@@ -19,26 +38,32 @@ export default function CrewDashboard() {
         .select('*')
         .eq('zone', user.zone || 'Zone-1')
         .in('status', ['active', 'acknowledged'])
-        .order('priority', { ascending: false }); // Note: you'd normally map priority enum to int, for demo this orders alphabetically
+        .order('priority', { ascending: false });
         
       if (data) setAlerts(data);
     }
     fetchAlerts();
     
-    const m = new maplibregl.Map({
-      container: 'crew-map',
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-      center: [78.4867, 17.3850],
-      zoom: 12
-    });
-    setMap(m);
+    let cancelled = false;
+    loadML().then(ml => {
+      if (cancelled || !containerRef.current || mapRef.current) return;
+      mapRef.current = new ml.Map({
+        container: containerRef.current,
+        style: CARTO,
+        center: [78.4867, 17.3850],
+        zoom: 12,
+        attributionControl: false,
+      });
+    }).catch(() => {});
 
-    return () => m.remove();
+    return () => {
+      cancelled = true;
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+    };
   }, [user.zone]);
 
   // Use Realtime Hook
   useRealtimeAlerts(user.zone || 'Zone-1', (newAlert) => {
-    // Determine if it's an update or new insert based on id presence in array
     setAlerts(prev => {
       const exists = prev.find(a => a.id === newAlert.id);
       if (exists) return prev.map(a => a.id === newAlert.id ? newAlert : a);
@@ -62,7 +87,7 @@ export default function CrewDashboard() {
 
   return (
     <div className="flex flex-col h-full bg-surface">
-      <div className="p-4 bg-inverse-surface text-inverse-on-surface flex justify-between items-center shadow-md z-10">
+      <div className="p-4 bg-inverse-surface text-inverse-on-surface flex justify-between items-center shadow-md z-10 shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight">Crew Dispatch</h1>
           <p className="text-xs text-outline">{user?.zone || 'Zone-1'}</p>
@@ -70,8 +95,8 @@ export default function CrewDashboard() {
         <button onClick={() => supabase.auth.signOut()} className="text-sm bg-white/10 px-3 py-1.5 rounded-lg active:scale-95 transition-all">Sign Out</button>
       </div>
 
-      <div className="h-1/3 relative border-b-2 border-primary">
-        <div id="crew-map" className="absolute inset-0" />
+      <div className="h-1/3 relative border-b-2 border-primary shrink-0">
+        <div ref={containerRef} className="absolute inset-0" />
         <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur">
           Live Feed Active
         </div>
