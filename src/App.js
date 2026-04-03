@@ -68,9 +68,13 @@ export default function App() {
       <Routes>
         <Route path="/"       element={<LandingPage />} />
         <Route path="/login"  element={
-          user 
-            ? <Navigate to={user.role === 'citizen' ? '/citizen/dashboard' : user.role === 'crew' ? '/crew/dashboard' : '/dashboard'} replace/>
-            : <LoginPage />
+          !user ? (
+            <LoginPage />
+          ) : !user.role ? (
+            <div className="min-h-screen flex items-center justify-center bg-background">Loading profile...</div>
+          ) : (
+            <Navigate to={user.role === 'citizen' ? '/citizen/dashboard' : user.role === 'crew' ? '/crew/dashboard' : '/dashboard'} replace />
+          )
         }/>
 
         {/* CITIZEN ROUTES */}

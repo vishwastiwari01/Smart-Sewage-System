@@ -12,11 +12,11 @@ export const AuthProvider = ({ children }) => {
     // Safety timeout — never hang forever
     const timeout = setTimeout(() => {
       if (mounted) { 
-        console.warn("Auth check timed out after 5s. Wiping state.");
+        console.warn("Auth check timed out after 15s. Wiping state.");
         setUser(null); 
         setLoading(false); 
       }
-    }, 5000);
+    }, 15000);
 
     async function getSession() {
       try {

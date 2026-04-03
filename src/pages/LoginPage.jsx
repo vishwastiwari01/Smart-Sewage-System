@@ -51,19 +51,8 @@ export default function LoginPage({ onLogin }) {
         throw signInError;
       }
 
-      // Wait a moment for AuthContext to detect the session natively
-      setTimeout(async () => {
-        try {
-          const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
-          const targetRole = profile?.role || role;
-          
-          if (targetRole === 'citizen') window.location.href = '/citizen/dashboard';
-          else if (targetRole === 'crew') window.location.href = '/crew/dashboard';
-          else window.location.href = '/dashboard';
-        } catch (e) {
-          window.location.href = '/dashboard'; // Ultimate blind fallback
-        }
-      }, 500);
+      // Auth success! App.js will observe 'user' and 'user.role' and navigate accordingly.
+      // We keep 'loading' true here so the spinner persists during the transition.
 
     } catch (err) {
       setError(err.message || "Invalid credentials or network issue.");
