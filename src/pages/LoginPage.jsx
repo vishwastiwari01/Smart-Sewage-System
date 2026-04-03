@@ -28,18 +28,34 @@ export default function LoginPage({ onLogin }) {
     setLoading(true); setError("");
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      let { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password: pass,
       });
 
-      if (signInError) throw signInError;
+      // If user doesn't exist, automatically sign them up for the demo!
+      if (signInError && signInError.message.includes("Invalid login credentials")) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: pass,
+        });
+        
+        if (signUpError) throw signUpError;
+        
+        // Ensure user is caught
+        data = signUpData;
+        
+        // Automatically inject their selected Demo Role!
+        await supabase.from('profiles').upsert({ id: data.user.id, role: role, zone: role === 'crew' ? 'Zone-1' : null });
+      } else if (signInError) {
+        throw signInError;
+      }
 
       // The AuthContext will catch the session and update the role,
-      // it will automatically redirect using the ProtectedRoute wrapper but we can gently redirect here:
+      // it will automatically redirect using the ProtectedRoute wrapper but we gently redirect here:
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
       
-      const userRole = profile?.role || 'admin';
+      const userRole = profile?.role || role; // Fallback to selected role if just signed up
       if (userRole === 'citizen') navigate('/citizen/dashboard');
       else if (userRole === 'crew') navigate('/crew/dashboard');
       else navigate('/dashboard');

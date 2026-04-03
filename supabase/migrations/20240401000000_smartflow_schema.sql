@@ -18,6 +18,7 @@ create table reports (
   citizen_id uuid references profiles(id) on delete cascade,
   description text not null,
   location jsonb not null, -- { "lat": 17.385, "lng": 78.486, "address": "..." }
+  zone text default 'Zone-1', -- added to map reports to crew zones
   image_url text, -- Supabase Storage path
   status text default 'pending' check (status in ('pending','assigned','resolved','rejected')),
   priority text default 'medium' check (priority in ('low','medium','high','critical')),
