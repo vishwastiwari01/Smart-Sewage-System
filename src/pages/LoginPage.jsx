@@ -3,13 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 const ROLES = [
-  { id:"admin",  label:"Admin",       sub:"GHMC Municipal Officer",  icon:"admin_panel_settings", email:"admin@ghmc.gov.in",    pass:"admin123" },
-  { id:"crew",   label:"Field Crew",  sub:"Sanitation Engineer",     icon:"engineering",          email:"crew@ghmc.gov.in",     pass:"crew123" },
-  { id:"citizen",label:"Citizen",     sub:"Public Portal",           icon:"person",               email:"citizen@hyderabad.in", pass:"citizen123" },
+  { id:"admin",   label:"Admin",      sub:"GHMC Municipal Officer", icon:"admin_panel_settings", email:"admin@ghmc.gov.in",    pass:"admin123" },
+  { id:"crew",    label:"Field Crew", sub:"Sanitation Engineer",    icon:"engineering",          email:"crew@ghmc.gov.in",     pass:"crew123" },
+  { id:"citizen", label:"Citizen",    sub:"Public Portal",          icon:"person",               email:"citizen@hyderabad.in", pass:"citizen123" },
 ];
 
-export default function LoginPage({ onLogin }) {
-  const navigate  = useNavigate();
+export default function LoginPage() {
   const [role, setRole]     = useState("admin");
   const [email, setEmail]   = useState("admin@ghmc.gov.in");
   const [pass, setPass]     = useState("");
@@ -25,49 +24,42 @@ export default function LoginPage({ onLogin }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
 
     try {
-      let { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: pass,
-      });
+      // Try sign in first
+      let { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password: pass });
 
-      // If user doesn't exist, automatically sign them up for the demo!
-      if (signInError && signInError.message.includes("Invalid login credentials")) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password: pass,
-        });
-        
+      if (signInError && signInError.message.toLowerCase().includes("invalid login credentials")) {
+        // New user — sign up and create profile
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password: pass });
         if (signUpError) throw signUpError;
-        
-        // Ensure user is caught
         data = signUpData;
-        
-        // Automatically inject their selected Demo Role!
-        await supabase.from('profiles').upsert({ id: data.user.id, role: role, zone: role === 'crew' ? 'Zone-1' : null });
+
+        // Create their profile with selected role
+        if (data.user) {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            role: role,
+            zone: role === 'crew' ? 'Zone-1' : null
+          });
+        }
       } else if (signInError) {
         throw signInError;
       }
 
-      // Auth success! App.js will observe 'user' and 'user.role' and navigate accordingly.
-      // FAIL-SAFE: If the router doesn't transition in 3 seconds, force it.
-      setTimeout(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-          const targetRole = profile?.role || role;
-          if (targetRole === 'citizen') window.location.href = '/citizen/dashboard';
-          else if (targetRole === 'crew') window.location.href = '/crew/dashboard';
-          else window.location.href = '/dashboard';
-        }
-      }, 3000);
+      // ✅ Auth state change in AuthContext will handle everything.
+      // We stay in "Signing in..." state until context updates user + role
+      // and App.js routes accordingly. NO manual navigation here.
 
     } catch (err) {
-      setError(err.message || "Invalid credentials or network issue.");
+      console.error("Login error:", err);
+      setError(err.message || "Login failed. Check credentials and try again.");
       setLoading(false);
     }
+    // NOTE: setLoading(false) intentionally NOT called on success —
+    // the app will navigate away, which unmounts this component.
   }
 
   const selectedRole = ROLES.find(r => r.id === role);
@@ -133,19 +125,21 @@ export default function LoginPage({ onLogin }) {
             <div>
               <label className="font-label text-[10px] uppercase tracking-wider text-outline block mb-1.5">Email Address</label>
               <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required
-                className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3.5 py-2.5 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"/>
+                disabled={loading}
+                className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3.5 py-2.5 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-60"/>
             </div>
             <div>
               <label className="font-label text-[10px] uppercase tracking-wider text-outline block mb-1.5">Password</label>
               <input type="password" value={pass} onChange={e=>setPass(e.target.value)} required
-                placeholder={`${selectedRole?.pass}`}
-                className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3.5 py-2.5 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                disabled={loading}
+                placeholder={selectedRole?.pass}
+                className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3.5 py-2.5 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-60"
                 style={{ fontFamily:"JetBrains Mono, monospace" }}/>
               <p className="font-label text-[10px] text-outline mt-1.5">Hint: password is <code className="bg-surface-container px-1 rounded">{selectedRole?.pass}</code></p>
             </div>
 
             {error && (
-              <div className="bg-error-container text-on-error-container text-xs p-3 rounded-lg border border-error-container">{error}</div>
+              <div className="bg-error-container text-on-error-container text-xs p-3 rounded-lg">{error}</div>
             )}
 
             <button type="submit" disabled={loading}

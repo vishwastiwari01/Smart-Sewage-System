@@ -15,7 +15,7 @@ const SCENARIOS = [
 function statusHex(s) { return s==="CRITICAL"?"#ba1a1a":s==="WARNING"?"#d97706":"#16a34a"; }
 
 export default function SimPage() {
-  const { nodes, scenario, setScenario, paused, setPaused, mqttLog } = useSimulation("HYD-OC-107");
+  const { nodes, scenario, setScenario, paused, setPaused, mqttLog, broadcastToDB, setBroadcastToDB, critCount } = useSimulation("HYD-OC-107");
   const [manualLevel, setManualLevel] = useState(5);
   const [manualGas,   setManualGas]   = useState(300);
   const [autoMode,    setAutoMode]    = useState(true);
@@ -76,6 +76,23 @@ export default function SimPage() {
               </button>
             </div>
           ))}
+          {/* Broadcast to Crew Toggle */}
+          <div className="flex justify-between items-center py-2.5 border-t border-outline-variant/10">
+            <div>
+              <span className="text-xs text-on-surface-variant block">Broadcast to Crew</span>
+              <span className="font-label text-[9px] text-outline">Writes critical alerts to DB</span>
+            </div>
+            <button onClick={()=>setBroadcastToDB(!broadcastToDB)}
+              className={`w-9 h-5 rounded-full transition-all relative ${broadcastToDB?"bg-error":"bg-surface-container-high"}`}>
+              <span className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all shadow-sm ${broadcastToDB?"left-4":"left-0.5"}`}/>
+            </button>
+          </div>
+          {broadcastToDB && critCount > 0 && (
+            <div className="mt-2 bg-error-container text-on-error-container text-[10px] font-bold px-3 py-2 rounded-xl flex items-center gap-2 animate-pulse">
+              <span className="material-symbols-outlined text-sm">warning</span>
+              {critCount} CRITICAL — crew notified!
+            </div>
+          )}
         </div>
 
         <div className="p-4">
