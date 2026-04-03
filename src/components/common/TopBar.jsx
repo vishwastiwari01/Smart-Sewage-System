@@ -66,14 +66,14 @@ export default function TopBar({ critCount = 0, warnCount = 0, user, onLogout })
         </div>
         <span className="font-label text-[10.5px] text-outline hidden sm:block">{clock}</span>
         {user && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 ml-2 border-l border-outline-variant/30 pl-3">
             <div className="text-right hidden md:block">
-              <div className="text-[11px] font-semibold text-on-surface">{user.name}</div>
+              <div className="text-[11px] font-semibold text-on-surface">{user.name || user.email?.split('@')[0]}</div>
               <div className="font-label text-[9px] text-outline uppercase">{user.role}</div>
             </div>
             <button onClick={onLogout}
-              className="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center hover:bg-surface-container-high transition-colors">
-              <span className="material-symbols-outlined text-[15px] text-on-surface-variant">logout</span>
+              className="text-xs bg-surface-container-high border border-outline-variant/40 px-3 py-1.5 rounded-lg text-on-surface-variant active:scale-95 transition font-medium hover:bg-surface-container-highest">
+              Sign Out
             </button>
           </div>
         )}
