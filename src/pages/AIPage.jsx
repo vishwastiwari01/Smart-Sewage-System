@@ -57,7 +57,7 @@ export default function AIPage() {
   const color = statusHex(p.probability);
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div style={{ flex:1, minHeight:0, display:'flex', overflow:'hidden' }}>
       {/* LEFT */}
       <aside className="w-[268px] bg-surface-container-low border-r border-outline-variant/10 overflow-y-auto custom-scrollbar shrink-0">
         <div className="p-4 border-b border-outline-variant/10">

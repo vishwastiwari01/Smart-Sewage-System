@@ -35,30 +35,39 @@ import "./index.css";
 
 function AdminShell({ user }) {
   const { critCount, warnCount, alerts, dismissAlert } = useSimulation();
+  const TOPBAR_H = 48;
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
+    // height: 100vh on shell. TopBar is fixed (48px).
+    // Content gets an EXPLICIT calc height so DashboardPage's h-full resolves.
+    <div style={{ height:'100vh', overflow:'hidden', position:'relative' }}>
       <TopBar critCount={critCount} warnCount={warnCount} user={user} onLogout={() => supabase.auth.signOut()} />
       <AlertToasts alerts={alerts} onDismiss={dismissAlert}/>
-      <div style={{ paddingTop:48, flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
-        <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
-          <Routes>
-            <Route path="/dashboard"    element={<DashboardPage />} />
-            <Route path="/incidents"    element={<IncidentsPage />} />
-            <Route path="/ai"           element={<AIPage />} />
-            <Route path="/analytics"    element={<AnalyticsPage />} />
-            <Route path="/safety"       element={<SafetyPage />} />
-            <Route path="/sim"          element={<SimPage />} />
-            <Route path="/messages"     element={<MessagesPage />} />
-            <Route path="/twin"         element={<DigitalTwinPage />} />
-            <Route path="/architecture" element={<ArchitecturePage />} />
-            <Route path="/mobile"       element={<MobilePage />} />
-            <Route path="*"             element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </div>
+      <div style={{
+        position:'absolute',
+        top: TOPBAR_H,
+        left: 0, right: 0, bottom: 0,   // fills exactly the space BELOW the TopBar
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        <Routes>
+          <Route path="/dashboard"    element={<DashboardPage />} />
+          <Route path="/incidents"    element={<IncidentsPage />} />
+          <Route path="/ai"           element={<AIPage />} />
+          <Route path="/analytics"    element={<AnalyticsPage />} />
+          <Route path="/safety"       element={<SafetyPage />} />
+          <Route path="/sim"          element={<SimPage />} />
+          <Route path="/messages"     element={<MessagesPage />} />
+          <Route path="/twin"         element={<DigitalTwinPage />} />
+          <Route path="/architecture" element={<ArchitecturePage />} />
+          <Route path="/mobile"       element={<MobilePage />} />
+          <Route path="*"             element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </div>
     </div>
   );
 }
+
 
 // Redirects already-logged-in users away from login/landing
 // Shows a tiny spinner ONLY on the login page if auth is still resolving

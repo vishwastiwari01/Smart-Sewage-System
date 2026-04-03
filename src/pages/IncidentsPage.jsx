@@ -34,7 +34,7 @@ export default function IncidentsPage() {
   ];
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div style={{ flex:1, minHeight:0, display:'flex', overflow:'hidden' }}>
       {/* Main list */}
       <div className="flex-1 flex flex-col overflow-hidden bg-surface">
         {/* Stats */}

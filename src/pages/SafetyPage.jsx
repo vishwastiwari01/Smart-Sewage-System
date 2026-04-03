@@ -47,7 +47,7 @@ export default function SafetyPage() {
   const gasReadings = [gasData.h2s, gasData.ch4, gasData.nh3, gasData.co];
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div style={{ flex:1, minHeight:0, display:'flex', overflow:'hidden' }}>
 
       {/* ── MAIN ── */}
       <div className="flex-1 overflow-y-auto custom-scrollbar bg-surface flex flex-col">

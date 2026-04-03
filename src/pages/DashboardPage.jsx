@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const sel = selId ? nodes.find(n=>n.id===selId) : null;
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div style={{ flex:1, minHeight:0, display:'flex', overflow:'hidden' }}>
       {/* LEFT sidebar */}
       <aside className="w-[232px] bg-surface-container-low flex flex-col border-r border-outline-variant/10 shrink-0">
         <div className="p-4 border-b border-outline-variant/10">
