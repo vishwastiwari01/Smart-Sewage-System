@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCrewNotifications } from '../../hooks/useCrewNotifications';
@@ -23,61 +22,326 @@ function loadML() {
   });
 }
 
+// Build a Google Maps navigation URL
+function mapsUrl(lat, lng, label = 'Incident') {
+  if (!lat || !lng) return `https://maps.google.com/?q=Hyderabad,India`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+}
+
+// Time ago helper
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return `${Math.floor(diff / 3600)}h ago`;
+}
+
+// Status pill styles
+const PRIORITY_STYLE = {
+  critical: 'bg-red-900/40 text-red-300 border-red-700',
+  high:     'bg-orange-900/40 text-orange-300 border-orange-700',
+  medium:   'bg-yellow-900/40 text-yellow-300 border-yellow-700',
+  low:      'bg-slate-700 text-slate-300 border-slate-600',
+};
+
+// Job card for sensor alert
+function AlertCard({ alert, onJoin, onResolve, joining }) {
+  const lat = alert.latitude;
+  const lng = alert.longitude;
+  const isJoined = alert.acknowledged_by != null;
+  const isResolved = alert.status === 'resolved';
+
+  return (
+    <div className={`bg-slate-800 rounded-2xl border overflow-hidden mb-3
+      ${alert.priority === 'critical' ? 'border-red-700' : 'border-slate-700'}`}>
+      {/* Priority stripe */}
+      {alert.priority === 'critical' && (
+        <div className="h-1 bg-gradient-to-r from-red-500 via-rose-500 to-red-500 animate-pulse" />
+      )}
+      
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center
+              ${alert.priority === 'critical' ? 'bg-red-900/50' : 'bg-orange-900/30'}`}>
+              <span className="material-symbols-outlined text-base text-red-400">
+                {alert.alert_type === 'gas' ? 'air' : 'flood'}
+              </span>
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white capitalize">
+                {alert.alert_type || 'Sensor'} Alert
+              </div>
+              <div className="text-[10px] text-slate-400">Node: {alert.node_id}</div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase ${PRIORITY_STYLE[alert.priority] || PRIORITY_STYLE.medium}`}>
+              {alert.priority}
+            </span>
+            <span className="text-[9px] text-slate-500">{timeAgo(alert.created_at)}</span>
+          </div>
+        </div>
+
+        {/* Sensor Readings */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="bg-slate-700/40 rounded-xl p-2.5">
+            <div className="text-[9px] text-slate-400 uppercase tracking-wider mb-1">💧 Water Level</div>
+            <div className="font-bold text-white text-sm">{(alert.water_level || 0).toFixed(1)}%</div>
+            <div className="mt-1.5 h-1 bg-slate-600 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 rounded-full transition-all"
+                style={{ width: `${Math.min(alert.water_level || 0, 100)}%` }} />
+            </div>
+          </div>
+          <div className="bg-slate-700/40 rounded-xl p-2.5">
+            <div className="text-[9px] text-slate-400 uppercase tracking-wider mb-1">☁️ Gas Level</div>
+            <div className="font-bold text-white text-sm">{(alert.gas_level || 0).toFixed(1)}%</div>
+            <div className="mt-1.5 h-1 bg-slate-600 rounded-full overflow-hidden">
+              <div className="h-full bg-orange-500 rounded-full transition-all"
+                style={{ width: `${Math.min(alert.gas_level || 0, 100)}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Zone + Actions */}
+        <div className="flex items-center gap-1 mb-3">
+          <span className="material-symbols-outlined text-sm text-slate-500">location_on</span>
+          <span className="text-xs text-slate-400">{alert.zone} · Hyderabad</span>
+        </div>
+
+        <div className="flex gap-2">
+          {/* Navigate button */}
+          <a href={mapsUrl(lat, lng, alert.node_id)} target="_blank" rel="noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95 transition border border-slate-600">
+            <span className="material-symbols-outlined text-sm">directions</span>
+            Navigate
+          </a>
+
+          {isResolved ? (
+            <div className="flex-1 py-2.5 bg-green-900/30 text-green-400 text-xs font-bold rounded-xl text-center border border-green-800">
+              ✓ Resolved
+            </div>
+          ) : !isJoined ? (
+            <button onClick={() => onJoin(alert.id)} disabled={joining === alert.id}
+              className="flex-1 py-2.5 bg-primary text-white text-xs font-bold rounded-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5">
+              {joining === alert.id
+                ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : <span className="material-symbols-outlined text-sm">check_circle</span>
+              }
+              Accept Job
+            </button>
+          ) : (
+            <button onClick={() => onResolve(alert.id)} disabled={joining === alert.id}
+              className="flex-1 py-2.5 bg-green-600 text-white text-xs font-bold rounded-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-sm">task_alt</span>
+              Mark Resolved
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Job card for citizen report (like Zomato order)
+function ReportCard({ report, onJoin, onResolve, joining, crewId }) {
+  const loc = report.location || {};
+  const lat = loc.lat || loc.latitude;
+  const lng = loc.lng || loc.longitude;
+  const isMyJob = report.assigned_to === crewId;
+  const isResolved = report.status === 'resolved';
+
+  return (
+    <div className={`bg-slate-800 rounded-2xl border overflow-hidden mb-3
+      ${report.status === 'pending' ? 'border-amber-700/50' : 'border-slate-700'}`}>
+      
+      {/* NEW badge for unassigned */}
+      {report.status === 'pending' && (
+        <div className="h-1 bg-gradient-to-r from-amber-500 to-yellow-400" />
+      )}
+
+      <div className="flex">
+        {/* Photo */}
+        {report.image_url ? (
+          <div className="w-24 shrink-0">
+            <img src={report.image_url} alt="Report" className="w-full h-full object-cover"
+              style={{ minHeight: 100 }} />
+          </div>
+        ) : (
+          <div className="w-16 shrink-0 bg-slate-700/50 flex items-center justify-center">
+            <span className="material-symbols-outlined text-2xl text-slate-500">image_not_supported</span>
+          </div>
+        )}
+
+        <div className="flex-1 p-3">
+          {/* Status + Time */}
+          <div className="flex justify-between items-start mb-1.5">
+            <div className="flex items-center gap-1.5">
+              {report.status === 'pending' && (
+                <span className="text-[9px] font-bold bg-amber-900/40 text-amber-300 border border-amber-700 px-1.5 py-0.5 rounded-full uppercase animate-pulse">
+                  New Job
+                </span>
+              )}
+              {isMyJob && report.status === 'assigned' && (
+                <span className="text-[9px] font-bold bg-blue-900/40 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded-full uppercase">
+                  Your Job
+                </span>
+              )}
+              {isResolved && (
+                <span className="text-[9px] font-bold bg-green-900/40 text-green-300 border border-green-700 px-1.5 py-0.5 rounded-full uppercase">
+                  Resolved
+                </span>
+              )}
+            </div>
+            <span className="text-[9px] text-slate-500">{timeAgo(report.created_at)}</span>
+          </div>
+
+          {/* Description */}
+          <p className="text-xs font-medium text-slate-200 line-clamp-2 leading-tight mb-2">
+            {report.description}
+          </p>
+
+          {/* Location */}
+          <div className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px] text-slate-500">location_on</span>
+            <span className="text-[10px] text-slate-400">
+              {report.zone || 'Hyderabad'}
+              {lat && lng ? ` · ${parseFloat(lat).toFixed(4)}°N, ${parseFloat(lng).toFixed(4)}°E` : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Row */}
+      <div className="px-3 pb-3 flex gap-2 mt-1">
+        {/* Navigate */}
+        <a href={mapsUrl(lat, lng)} target="_blank" rel="noreferrer"
+          className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95 transition border border-slate-600">
+          <span className="material-symbols-outlined text-sm">directions</span>
+          Navigate
+        </a>
+
+        {isResolved ? (
+          <div className="flex-1 py-2.5 bg-green-900/30 text-green-400 text-xs font-bold rounded-xl text-center border border-green-800">
+            ✓ Completed
+          </div>
+        ) : !isMyJob && report.status === 'pending' ? (
+          <button onClick={() => onJoin(report.id)} disabled={joining === report.id}
+            className="flex-1 py-2.5 bg-amber-500 text-white text-xs font-bold rounded-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5">
+            {joining === report.id
+              ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <span className="material-symbols-outlined text-sm">directions_run</span>
+            }
+            Accept Job
+          </button>
+        ) : isMyJob ? (
+          <button onClick={() => onResolve(report.id)} disabled={joining === report.id}
+            className="flex-1 py-2.5 bg-green-600 text-white text-xs font-bold rounded-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5">
+            <span className="material-symbols-outlined text-sm">task_alt</span>
+            Mark Done
+          </button>
+        ) : (
+          <div className="flex-1 py-2.5 bg-slate-700/40 text-slate-500 text-xs font-medium rounded-xl text-center">
+            Assigned to another crew
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CrewDashboard() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const crewZone = user?.zone || 'Zone-1';
 
   const [alerts, setAlerts]       = useState([]);
   const [reports, setReports]     = useState([]);
-  const [tab, setTab]             = useState('alerts'); // 'alerts' | 'reports'
+  const [tab, setTab]             = useState('reports'); // default to reports since more intuitive
   const [newCount, setNewCount]   = useState(0);
-  const [joining, setJoining]     = useState(null); // alert/report id being claimed
+  const [joining, setJoining]     = useState(null);
   const [loading, setLoading]     = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   const mapRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Fetch initial data
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      const [alertsRes, reportsRes] = await Promise.all([
-        supabase.from('alerts').select('*')
-          .in('status', ['active', 'acknowledged'])
-          .order('created_at', { ascending: false }),
-        supabase.from('reports').select('*')
-          .eq('zone', crewZone)
-          .in('status', ['pending', 'assigned'])
-          .order('created_at', { ascending: false }),
-      ]);
-      if (alertsRes.data) setAlerts(alertsRes.data);
-      if (reportsRes.data) setReports(reportsRes.data);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setFetchError(null);
+
+    try {
+      // Fetch alerts — try all priorities for crew's zone
+      const { data: alertData, error: alertErr } = await supabase
+        .from('alerts')
+        .select('*')
+        .in('status', ['active', 'acknowledged'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      // Fetch reports — try ALL pending/assigned reports (not just zone filtered)
+      // The zone filter depends on RLS being configured. We fetch broadly and filter in JS.
+      const { data: reportData, error: reportErr } = await supabase
+        .from('reports')
+        .select('*')
+        .in('status', ['pending', 'assigned', 'resolved'])
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      if (alertErr) console.warn('Alert fetch error (RLS may need setup):', alertErr.message);
+      if (reportErr) console.warn('Report fetch error (RLS may need setup):', reportErr.message);
+
+      if (alertData) setAlerts(alertData);
+      if (reportData) setReports(reportData);
+
+      // Show setup hint if both return nothing and there's an RLS error
+      if ((!alertData?.length && !reportData?.length) && (alertErr || reportErr)) {
+        setFetchError('rls');
+      }
+    } catch (err) {
+      console.error('loadData failure:', err);
+    } finally {
       setLoading(false);
     }
-    fetchData();
-  }, [crewZone]);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   // Map
   useEffect(() => {
     let cancelled = false;
     loadML().then(ml => {
       if (cancelled || !containerRef.current || mapRef.current) return;
-      mapRef.current = new ml.Map({
+      const map = new ml.Map({
         container: containerRef.current,
         style: CARTO,
         center: [78.4867, 17.3850],
-        zoom: 12,
+        zoom: 11,
         attributionControl: false,
+      });
+      mapRef.current = map;
+
+      // Add markers for reports once map loads
+      map.on('load', () => {
+        reports.forEach(r => {
+          const loc = r.location || {};
+          const lat = loc.lat || loc.latitude;
+          const lng = loc.lng || loc.longitude;
+          if (lat && lng && !cancelled) {
+            new ml.Marker({ color: r.status === 'pending' ? '#f59e0b' : '#3b82f6' })
+              .setLngLat([lng, lat])
+              .addTo(map);
+          }
+        });
       });
     }).catch(() => {});
     return () => {
       cancelled = true;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
-  }, []);
+  }, []); // eslint-disable-line
 
-  // Realtime via useCrewNotifications
+  // Realtime
   useCrewNotifications(crewZone, {
     onAlert: (newAlert) => {
       setAlerts(prev => {
@@ -97,112 +361,138 @@ export default function CrewDashboard() {
     },
   });
 
-  const acknowledgeAlert = async (alertId) => {
+  // Accept sensor alert
+  const joinAlert = async (alertId) => {
     setJoining(alertId);
-    const { error } = await supabase
-      .from('alerts')
+    const { error } = await supabase.from('alerts')
       .update({ status: 'acknowledged', acknowledged_by: user.id })
       .eq('id', alertId);
     if (!error) {
-      setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, status: 'acknowledged', acknowledged_by: user.id } : a));
+      setAlerts(prev => prev.map(a => a.id === alertId
+        ? { ...a, status: 'acknowledged', acknowledged_by: user.id } : a));
     }
     setJoining(null);
   };
 
+  // Resolve sensor alert
+  const resolveAlert = async (alertId) => {
+    setJoining(alertId);
+    const { error } = await supabase.from('alerts')
+      .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+      .eq('id', alertId);
+    if (!error) {
+      setAlerts(prev => prev.filter(a => a.id !== alertId));
+    }
+    setJoining(null);
+  };
+
+  // Accept citizen report
   const joinReport = async (reportId) => {
     setJoining(reportId);
-    const { error } = await supabase
-      .from('reports')
+    const { error } = await supabase.from('reports')
       .update({ status: 'assigned', assigned_to: user.id })
       .eq('id', reportId);
     if (!error) {
-      setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'assigned', assigned_to: user.id } : r));
+      setReports(prev => prev.map(r => r.id === reportId
+        ? { ...r, status: 'assigned', assigned_to: user.id } : r));
     }
     setJoining(null);
   };
 
-  const getPriorityBadge = (p) => {
-    if (p === 'critical') return 'bg-red-100 text-red-700 border border-red-200';
-    if (p === 'high')     return 'bg-orange-100 text-orange-700 border border-orange-200';
-    return 'bg-blue-50 text-blue-700 border border-blue-200';
+  // Resolve citizen report
+  const resolveReport = async (reportId) => {
+    setJoining(reportId);
+    const { error } = await supabase.from('reports')
+      .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+      .eq('id', reportId);
+    if (!error) {
+      setReports(prev => prev.map(r => r.id === reportId
+        ? { ...r, status: 'resolved' } : r));
+    }
+    setJoining(null);
   };
 
-  const alertCount  = alerts.filter(a => a.status === 'active').length;
-  const reportCount = reports.filter(r => r.status === 'pending').length;
+  const pendingReports  = reports.filter(r => r.status === 'pending');
+  const myReports       = reports.filter(r => r.assigned_to === user?.id);
+  const activeAlerts    = alerts.filter(a => a.status === 'active');
+  const acceptedAlerts  = alerts.filter(a => a.status === 'acknowledged' && a.acknowledged_by === user?.id);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-900">
+
       {/* Header */}
-      <div className="bg-slate-800 text-white px-4 py-3 flex justify-between items-center shrink-0 border-b border-slate-700">
+      <div className="bg-slate-800 px-4 py-3 flex justify-between items-center border-b border-slate-700 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-primary/20 rounded-xl flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary text-lg">engineering</span>
+          <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+            <span className="material-symbols-outlined text-primary">engineering</span>
           </div>
           <div>
-            <h1 className="font-bold text-sm leading-tight">Crew Dispatch</h1>
+            <h1 className="font-bold text-white tracking-tight">Crew Dispatch</h1>
             <p className="text-[10px] text-slate-400">{crewZone} · {user?.email?.split('@')[0]}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {newCount > 0 && (
-            <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+            <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse flex items-center gap-1">
+              <span className="material-symbols-outlined text-xs">notifications_active</span>
               {newCount} New
             </div>
           )}
-          <button onClick={signOut} className="text-xs bg-slate-700 px-3 py-1.5 rounded-lg font-medium text-slate-300 active:scale-95 transition">
+          <button onClick={signOut} className="text-xs bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg text-slate-300 active:scale-95 transition font-medium">
             Sign Out
           </button>
         </div>
       </div>
 
-      {/* Map Strip */}
-      <div className="h-36 relative border-b-2 border-primary/50 shrink-0">
+      {/* Map */}
+      <div className="h-36 relative border-b-2 border-primary/30 shrink-0 bg-slate-900">
         <div ref={containerRef} className="absolute inset-0" />
-        <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg backdrop-blur font-bold flex items-center gap-1">
-          <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"/>Live Map Feed
+        <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1.5 backdrop-blur">
+          <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+          Live Map · {crewZone}
         </div>
-        <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg backdrop-blur">
-          {crewZone}
+        {/* Map legend */}
+        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[9px] px-2 py-1 rounded-lg backdrop-blur flex gap-3">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-400 rounded-full inline-block"/>Citizen Report</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-400 rounded-full inline-block"/>Assigned</span>
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="bg-slate-800 px-4 py-2.5 flex gap-4 border-b border-slate-700 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"/>
-          <span className="text-xs text-slate-300 font-medium">{alertCount} Active Alert{alertCount !== 1 ? 's' : ''}</span>
+      {/* Stats strips */}
+      <div className="bg-slate-800 px-4 py-2 flex gap-4 border-b border-slate-700 shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+          <span className="text-xs text-slate-300">{activeAlerts.length} Sensor Alert{activeAlerts.length !== 1 ? 's' : ''}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-amber-400 rounded-full"/>
-          <span className="text-xs text-slate-300 font-medium">{reportCount} Citizen Report{reportCount !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="w-2 h-2 bg-amber-400 rounded-full" />
+          <span className="text-xs text-slate-300">{pendingReports.length} New Report{pendingReports.length !== 1 ? 's' : ''}</span>
         </div>
-        <div className="ml-auto">
-          <button
-            onClick={() => setNewCount(0)}
-            className="text-[10px] text-slate-500 font-medium"
-          >
-            Clear badge
-          </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="w-2 h-2 bg-blue-400 rounded-full" />
+          <span className="text-xs text-slate-300">{myReports.length} My Job{myReports.length !== 1 ? 's' : ''}</span>
         </div>
+        <button onClick={() => { setNewCount(0); loadData(); }}
+          className="ml-auto text-[10px] text-primary font-medium flex items-center gap-1 shrink-0">
+          <span className="material-symbols-outlined text-xs">refresh</span>Refresh
+        </button>
       </div>
 
       {/* Tabs */}
       <div className="flex bg-slate-800 border-b border-slate-700 shrink-0">
         {[
-          { id: 'alerts', label: 'Sensor Alerts', count: alerts.length, icon: 'sensors' },
-          { id: 'reports', label: 'Citizen Reports', count: reports.length, icon: 'report' },
+          { id: 'reports', label: 'Citizen Reports', count: reports.length, icon: 'report', badge: pendingReports.length },
+          { id: 'alerts',  label: 'Sensor Alerts',   count: alerts.length,  icon: 'sensors', badge: activeAlerts.length },
         ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => tab === t.id ? null : (setTab(t.id), setNewCount(0))}
+          <button key={t.id} onClick={() => { setTab(t.id); setNewCount(0); }}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold border-b-2 transition-all
-              ${tab === t.id ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
-          >
+              ${tab === t.id ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}>
             <span className="material-symbols-outlined text-sm">{t.icon}</span>
             {t.label}
-            {t.count > 0 && (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${tab === t.id ? 'bg-primary/20 text-primary' : 'bg-slate-700 text-slate-400'}`}>
-                {t.count}
+            {t.badge > 0 && (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full
+                ${tab === t.id ? 'bg-primary/20 text-primary' : 'bg-red-600 text-white'}`}>
+                {t.badge}
               </span>
             )}
           </button>
@@ -210,136 +500,119 @@ export default function CrewDashboard() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900">
-        {loading && (
-          <div className="flex justify-center mt-10">
-            <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"/>
+      <div className="flex-1 overflow-y-auto p-4 bg-slate-900">
+
+        {/* RLS setup hint */}
+        {fetchError === 'rls' && (
+          <div className="bg-amber-900/30 border border-amber-700 rounded-2xl p-4 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-amber-400">info</span>
+              <span className="text-xs font-bold text-amber-400">Database Setup Required</span>
+            </div>
+            <p className="text-[11px] text-amber-300/80 leading-relaxed">
+              Run the SQL migration in Supabase SQL Editor to enable crew data access. File: <code className="bg-amber-900/50 px-1 rounded">supabase/migrations/20240402000000_rls_fixes.sql</code>
+            </p>
           </div>
         )}
 
-        {/* ALERTS TAB */}
-        {!loading && tab === 'alerts' && (
+        {loading && (
+          <div className="flex flex-col items-center justify-center mt-12 gap-3">
+            <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"/>
+            <span className="text-sm text-slate-400">Loading jobs…</span>
+          </div>
+        )}
+
+        {/* CITIZEN REPORTS TAB */}
+        {!loading && tab === 'reports' && (
           <>
-            {alerts.length === 0 && (
-              <div className="text-center text-slate-500 text-sm mt-10">
-                <span className="material-symbols-outlined text-4xl block mb-2 opacity-30">sensors_off</span>
-                No active alerts in your zone.
+            {/* My active jobs first */}
+            {myReports.filter(r => r.status === 'assigned').length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"/>
+                  <h3 className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Your Active Jobs</h3>
+                </div>
+                {myReports.filter(r => r.status === 'assigned').map(r => (
+                  <ReportCard key={r.id} report={r} onJoin={joinReport}
+                    onResolve={resolveReport} joining={joining} crewId={user?.id} />
+                ))}
               </div>
             )}
-            {alerts.map(a => (
-              <div key={a.id} className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
-                {a.priority === 'critical' && <div className="h-1 bg-gradient-to-r from-red-500 to-rose-600 animate-pulse"/>}
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase ${getPriorityBadge(a.priority)}`}>
-                        {a.priority}
-                      </span>
-                      <h3 className="font-bold text-white mt-1.5 text-sm">
-                        {a.alert_type?.toUpperCase()} — {a.node_id}
-                      </h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Zone: {a.zone}</p>
-                    </div>
-                    <span className="text-[10px] text-slate-500">{new Date(a.created_at).toLocaleTimeString()}</span>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="bg-slate-700/50 p-2.5 rounded-xl">
-                      <div className="text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">Water Level</div>
-                      <div className="font-bold text-white text-sm font-label">{(a.water_level || 0).toFixed(1)}%</div>
-                      <div className="mt-1.5 h-1 bg-slate-600 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(a.water_level || 0, 100)}%` }}/>
-                      </div>
-                    </div>
-                    <div className="bg-slate-700/50 p-2.5 rounded-xl">
-                      <div className="text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">Gas Level</div>
-                      <div className="font-bold text-white text-sm font-label">{(a.gas_level || 0).toFixed(1)}%</div>
-                      <div className="mt-1.5 h-1 bg-slate-600 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full" style={{ width: `${Math.min(a.gas_level || 0, 100)}%` }}/>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    {a.status === 'active' ? (
-                      <button
-                        onClick={() => acknowledgeAlert(a.id)}
-                        disabled={joining === a.id}
-                        className="flex-1 py-2.5 bg-primary text-white text-xs font-bold rounded-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-                      >
-                        {joining === a.id
-                          ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                          : <span className="material-symbols-outlined text-sm">check_circle</span>
-                        }
-                        Join & Acknowledge
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => navigate(`/crew/incident/${a.id}`)}
-                        className="flex-1 py-2.5 bg-slate-700 text-primary border border-primary/30 text-xs font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5"
-                      >
-                        <span className="material-symbols-outlined text-sm">open_in_new</span>
-                        View & Resolve
-                      </button>
-                    )}
-                  </div>
+            {/* New incoming jobs */}
+            {pendingReports.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"/>
+                  <h3 className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">New Incoming Jobs</h3>
                 </div>
+                {pendingReports.map(r => (
+                  <ReportCard key={r.id} report={r} onJoin={joinReport}
+                    onResolve={resolveReport} joining={joining} crewId={user?.id} />
+                ))}
               </div>
-            ))}
+            )}
+
+            {reports.length === 0 && !loading && (
+              <div className="flex flex-col items-center justify-center mt-16 text-center px-6">
+                <span className="material-symbols-outlined text-5xl text-slate-600 mb-3">inbox</span>
+                <p className="text-sm font-medium text-slate-400">No reports yet</p>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  When citizens submit reports or the simulation broadcasts alerts, they will appear here as jobs ready to accept.
+                </p>
+              </div>
+            )}
+
+            {/* Resolved jobs */}
+            {reports.filter(r => r.status === 'resolved' && r.assigned_to === user?.id).length > 0 && (
+              <div className="mt-2">
+                <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">Completed Today</h3>
+                {reports.filter(r => r.status === 'resolved' && r.assigned_to === user?.id).map(r => (
+                  <ReportCard key={r.id} report={r} onJoin={joinReport}
+                    onResolve={resolveReport} joining={joining} crewId={user?.id} />
+                ))}
+              </div>
+            )}
           </>
         )}
 
-        {/* REPORTS TAB */}
-        {!loading && tab === 'reports' && (
+        {/* SENSOR ALERTS TAB */}
+        {!loading && tab === 'alerts' && (
           <>
-            {reports.length === 0 && (
-              <div className="text-center text-slate-500 text-sm mt-10">
-                <span className="material-symbols-outlined text-4xl block mb-2 opacity-30">inbox</span>
-                No citizen reports in your zone.
+            {/* Accepted alerts */}
+            {acceptedAlerts.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"/>
+                  <h3 className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Your Active Jobs</h3>
+                </div>
+                {acceptedAlerts.map(a => (
+                  <AlertCard key={a.id} alert={a} onJoin={joinAlert} onResolve={resolveAlert} joining={joining} />
+                ))}
               </div>
             )}
-            {reports.map(r => (
-              <div key={r.id} className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
-                <div className="flex gap-0">
-                  {r.image_url && (
-                    <div className="w-24 shrink-0">
-                      <img src={r.image_url} alt="Report" className="w-full h-full object-cover" style={{ minHeight: 80 }} />
-                    </div>
-                  )}
-                  <div className="flex-1 p-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase
-                        ${r.status === 'pending' ? 'bg-amber-900/30 text-amber-400 border-amber-700' : 'bg-blue-900/30 text-blue-400 border-blue-700'}`}>
-                        {r.status}
-                      </span>
-                      <span className="text-[10px] text-slate-500">{new Date(r.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-xs font-medium text-slate-200 line-clamp-2 leading-tight mt-1">{r.description}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Zone: {r.zone}</p>
-                  </div>
+
+            {activeAlerts.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"/>
+                  <h3 className="text-[11px] font-bold text-red-400 uppercase tracking-wider">Live Sensor Alerts</h3>
                 </div>
-                <div className="px-3 pb-3 flex gap-2">
-                  {r.status === 'pending' ? (
-                    <button
-                      onClick={() => joinReport(r.id)}
-                      disabled={joining === r.id}
-                      className="flex-1 py-2.5 bg-primary text-white text-xs font-bold rounded-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-                    >
-                      {joining === r.id
-                        ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                        : <span className="material-symbols-outlined text-sm">directions_run</span>
-                      }
-                      Join Report
-                    </button>
-                  ) : (
-                    <div className="text-[10px] text-blue-400 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm">check_circle</span>
-                      Assigned to you
-                    </div>
-                  )}
-                </div>
+                {activeAlerts.map(a => (
+                  <AlertCard key={a.id} alert={a} onJoin={joinAlert} onResolve={resolveAlert} joining={joining} />
+                ))}
               </div>
-            ))}
+            )}
+
+            {alerts.length === 0 && !loading && (
+              <div className="flex flex-col items-center justify-center mt-16 text-center px-6">
+                <span className="material-symbols-outlined text-5xl text-slate-600 mb-3">sensors_off</span>
+                <p className="text-sm font-medium text-slate-400">No sensor alerts</p>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  Ask admin to switch to a critical scenario in the Simulation page and enable "Broadcast to Crew" to send live alerts here.
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>
