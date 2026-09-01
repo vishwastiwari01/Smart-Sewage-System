@@ -11,7 +11,7 @@ function statusBg(s)  { return s==="CRITICAL"?"bg-error-container text-on-error-
 
 export default function DashboardPage() {
   const { nodes, critCount, warnCount } = useSimulation();
-  const { rainfall, loading: weatherLoading } = useWeather();
+  const { rainfall, currentWeather, loading: weatherLoading, lastUpdated, floodRisk } = useWeather();
   const [selId, setSelId] = useState(null);
   const sel = selId ? nodes.find(n=>n.id===selId) : null;
 
@@ -59,8 +59,47 @@ export default function DashboardPage() {
 
       {/* CENTRE */}
       <section className="flex-1 overflow-y-auto custom-scrollbar flex flex-col bg-surface">
+        {/* Live Weather Strip */}
+        <div className="flex items-center gap-3 px-4 py-2 bg-surface-container-lowest border-b border-outline-variant/10 shrink-0 overflow-x-auto custom-scrollbar">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>
+            <span className="font-label text-[10px] font-bold text-outline uppercase tracking-wider">Live Weather · Hyderabad</span>
+          </div>
+          <div className="h-3 w-px bg-outline-variant/30 shrink-0"/>
+          {weatherLoading ? (
+            <span className="font-label text-[10px] text-outline">Fetching…</span>
+          ) : currentWeather ? (
+            <>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="material-symbols-outlined text-[14px] text-primary">thermostat</span>
+                <span className="font-label text-[10.5px] font-semibold text-on-surface">{currentWeather.temp}°C</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="material-symbols-outlined text-[14px] text-outline">air</span>
+                <span className="font-label text-[10.5px] text-on-surface-variant">{currentWeather.windspeed} km/h</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="material-symbols-outlined text-[14px] text-outline">humidity</span>
+                <span className="font-label text-[10.5px] text-on-surface-variant">{currentWeather.humidity}%</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="material-symbols-outlined text-[14px] text-blue-500">water_drop</span>
+                <span className="font-label text-[10.5px] font-semibold text-blue-600">{rainfall[0]?.mm ?? 0}mm rain now</span>
+              </div>
+              <div className={`font-label text-[9px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                floodRisk==='HIGH'?'bg-error-container text-on-error-container':
+                floodRisk==='MODERATE'?'bg-amber-100 text-amber-700':
+                'bg-green-50 text-green-700'
+              }`}>{floodRisk} FLOOD RISK</div>
+              {lastUpdated && <span className="font-label text-[9px] text-outline shrink-0">Updated {lastUpdated}</span>}
+            </>
+          ) : (
+            <span className="font-label text-[10px] text-outline">Weather unavailable</span>
+          )}
+        </div>
+
         {/* Map */}
-        <div className="h-[360px] relative bg-surface-container overflow-hidden shrink-0">
+        <div className="h-[340px] relative bg-surface-container overflow-hidden shrink-0">
           {/* Overlay chips */}
           <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-2">
             <div className="bg-white/95 backdrop-blur text-xs font-semibold px-3 py-2 rounded-lg shadow border border-outline-variant/20 flex flex-col gap-1.5">
