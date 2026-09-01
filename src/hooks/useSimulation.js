@@ -128,17 +128,15 @@ export function useSimulation(targetNodeId = "HYD-OC-107") {
         };
         setMqttLog(prev => [entry, ...prev].slice(0, 60));
 
-        // Toast alert
-        if (node.status === "CRITICAL") {
+        // Toast alert — overflow only, gas alerts removed (gas is secondary metric)
+        if (node.level >= LEVEL_LIMIT) {
           setAlerts(prev => {
             const recent = prev.find(a => a.nodeId === node.id && Date.now() - a.ts < 20000);
             if (recent) return prev;
             return [{ id: Date.now(), ts: Date.now(), nodeId: node.id, location: node.name,
-              type: node.gas >= GAS_LIMIT ? "GAS ALERT" : "OVERFLOW",
-              msg: node.gas >= GAS_LIMIT
-                ? `Toxic gas ${node.gas} ADC at ${node.name}`
-                : `Sewage overflow ${node.level.toFixed(1)}cm at ${node.name}`,
-            }, ...prev].slice(0, 5);
+              type: "OVERFLOW",
+              msg: `Sewage overflow ${node.level.toFixed(1)}cm at ${node.name}`,
+            }, ...prev].slice(0, 3);
           });
 
           // Publish to DB if broadcast mode is ON

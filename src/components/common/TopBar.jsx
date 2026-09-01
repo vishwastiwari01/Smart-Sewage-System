@@ -7,13 +7,13 @@ const PRIMARY_NAV = [
   { to:"/ai",           label:"AI Predict",   icon:"psychology" },
   { to:"/analytics",    label:"Analytics",    icon:"bar_chart" },
   { to:"/twin",         label:"Digital Twin", icon:"hub" },
+  { to:"/sim",          label:"ESP32 Sim",    icon:"memory" },
+  { to:"/architecture", label:"Architecture", icon:"schema" },
 ];
 
 const MORE_NAV = [
-  { to:"/safety",       label:"Safety",       icon:"health_and_safety" },
-  { to:"/sim",          label:"ESP32 Sim",    icon:"memory" },
-  { to:"/messages",     label:"Messages",     icon:"campaign" },
-  { to:"/architecture", label:"Architecture", icon:"schema" },
+  { to:"/safety",   label:"Safety",    icon:"health_and_safety" },
+  { to:"/messages", label:"Messages",  icon:"campaign" },
 ];
 
 export default function TopBar({ critCount = 0, warnCount = 0, user, onLogout }) {
