@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 const PRIMARY_NAV = [
@@ -19,11 +19,23 @@ const MORE_NAV = [
 export default function TopBar({ critCount = 0, warnCount = 0, user, onLogout }) {
   const [clock, setClock] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString("en-IN", { hour12:false }));
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
+  }, []);
+
+  // Close dropdown when clicking anywhere outside it
+  useEffect(() => {
+    function handleClick(e) {
+      if (moreRef.current && !moreRef.current.contains(e.target)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   return (
@@ -50,17 +62,22 @@ export default function TopBar({ critCount = 0, warnCount = 0, user, onLogout })
               {n.label}
             </NavLink>
           ))}
-          <div className="relative" onMouseLeave={() => setMoreOpen(false)}>
-            <button onMouseEnter={() => setMoreOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 text-[11.5px] font-medium rounded-md text-on-surface-variant hover:bg-surface-container-low transition-all">
-              More <span className="material-symbols-outlined text-[14px]">expand_more</span>
+          {/* More dropdown — click-based, closes on outside click */}
+          <div className="relative" ref={moreRef}>
+            <button onClick={() => setMoreOpen(o => !o)}
+              className={`flex items-center gap-1 px-3 py-1.5 text-[11.5px] font-medium rounded-md transition-all
+                ${moreOpen ? "bg-primary/8 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"}`}>
+              More
+              <span className="material-symbols-outlined text-[14px]" style={{ transform: moreOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}>
+                expand_more
+              </span>
             </button>
             {moreOpen && (
-              <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-outline-variant/20 shadow-lg rounded-xl overflow-hidden py-1">
+              <div className="absolute top-full left-0 mt-1.5 w-52 bg-white border border-outline-variant/20 shadow-xl rounded-xl overflow-hidden py-1.5 z-50">
                 {MORE_NAV.map(n => (
                   <NavLink key={n.to} to={n.to} onClick={() => setMoreOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-2 px-4 py-2.5 text-[11.5px] font-medium transition-all
+                      `flex items-center gap-2.5 px-4 py-2.5 text-[11.5px] font-medium transition-all
                        ${isActive ? "bg-primary/5 text-primary" : "text-on-surface hover:bg-surface-container-low"}`
                     }>
                     <span className="material-symbols-outlined text-[16px]">{n.icon}</span>

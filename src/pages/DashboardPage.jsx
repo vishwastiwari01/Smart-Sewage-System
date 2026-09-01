@@ -45,8 +45,7 @@ export default function DashboardPage() {
                   <span className={`text-[9px] px-1.5 py-0.5 rounded font-label ${statusBg(n.status)}`}>{n.status}</span>
                 </div>
                 <div className="flex justify-between font-label text-[10px]">
-                  <span className="text-outline">{n.level.toFixed(1)} cm</span>
-                  <span className="text-outline">{n.gas} ADC</span>
+                  <span className="text-outline">{n.level.toFixed(1)} cm water level</span>
                   <span style={{ color: statusHex(n.status) }} className="font-semibold">{Math.round(n.level/LEVEL_LIMIT*100)}%</span>
                 </div>
                 <div className="mt-1.5 h-0.5 bg-surface-container rounded-full overflow-hidden">
@@ -120,7 +119,6 @@ export default function DashboardPage() {
                 <div className="flex flex-col gap-1.5 mb-3">
                   {[
                     { l:"LEVEL", v:`${n.level.toFixed(1)}`, u:"cm", c:statusHex(n.status) },
-                    { l:"GAS",   v:n.gas, u:"ADC", c:n.gas>=GAS_LIMIT?"#ba1a1a":n.gas>=GAS_LIMIT*.75?"#d97706":"#1a1c1c" },
                     { l:"PUMP",  v:n.pump, u:"", c:n.pump==="ON"?"#16a34a":"#737686" },
                   ].map(r => (
                     <div key={r.l} className="flex justify-between items-end">
@@ -192,7 +190,7 @@ export default function DashboardPage() {
                   <div className="w-1 rounded-full self-stretch" style={{ background:statusHex(n.status) }}/>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-on-surface truncate">{n.name}</div>
-                    <div className="font-label text-[10px] text-outline mt-0.5">{n.level.toFixed(1)} cm · {n.gas} ADC</div>
+                    <div className="font-label text-[10px] text-outline mt-0.5">{n.level.toFixed(1)} cm · {n.status === "CRITICAL" ? "Overflow risk" : "Approaching limit"}</div>
                   </div>
                 </div>
               ))
