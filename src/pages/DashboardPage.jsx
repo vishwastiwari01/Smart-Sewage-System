@@ -1,7 +1,8 @@
 import { useState, Suspense, lazy } from "react";
 import { useSimulation } from "../hooks/useSimulation";
+import { useWeather } from "../hooks/useWeather";
 import Sparkline from "../components/common/Sparkline";
-import { statusBadge, statusColor, LEVEL_LIMIT, GAS_LIMIT, RAINFALL, CREWS } from "../data/mockData";
+import { statusBadge, statusColor, LEVEL_LIMIT, GAS_LIMIT, CREWS } from "../data/mockData";
 
 const HyderabadMap = lazy(() => import("../components/common/HyderabadMap"));
 
@@ -10,6 +11,7 @@ function statusBg(s)  { return s==="CRITICAL"?"bg-error-container text-on-error-
 
 export default function DashboardPage() {
   const { nodes, critCount, warnCount } = useSimulation();
+  const { rainfall, loading: weatherLoading } = useWeather();
   const [selId, setSelId] = useState(null);
   const sel = selId ? nodes.find(n=>n.id===selId) : null;
 
@@ -17,25 +19,14 @@ export default function DashboardPage() {
     <div style={{ flex:1, minHeight:0, display:'flex', overflow:'hidden' }}>
       {/* LEFT sidebar */}
       <aside className="w-[232px] bg-surface-container-low flex flex-col border-r border-outline-variant/10 shrink-0">
-        <div className="p-4 border-b border-outline-variant/10">
-          <h3 className="font-label text-[10px] font-bold uppercase tracking-wider text-outline mb-3">Network Overview</h3>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-surface-container-lowest p-3 rounded-xl shadow-sm">
-              <span className="font-label text-lg font-bold block text-on-surface">{nodes.length}</span>
-              <span className="text-[10px] text-outline font-label">Nodes</span>
-            </div>
-            <div className="bg-error-container p-3 rounded-xl shadow-sm">
-              <span className="font-label text-lg font-bold text-on-error-container block">{String(critCount).padStart(2,"0")}</span>
-              <span className="text-[10px] text-on-error-container font-label">Critical</span>
-            </div>
-            <div className="bg-amber-50 p-3 rounded-xl shadow-sm">
-              <span className="font-label text-lg font-bold text-amber-700 block">{String(warnCount).padStart(2,"0")}</span>
-              <span className="text-[10px] text-amber-600 font-label">Warning</span>
-            </div>
-            <div className="bg-green-50 p-3 rounded-xl shadow-sm">
-              <span className="font-label text-lg font-bold text-green-700 block">{String(nodes.length-critCount-warnCount).padStart(2,"0")}</span>
-              <span className="text-[10px] text-green-600 font-label">Normal</span>
-            </div>
+        <div className="p-3 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-lowest">
+          <div className="flex flex-col">
+             <span className="font-label text-[10px] font-bold uppercase tracking-wider text-outline mb-1">Network</span>
+             <span className="text-sm font-bold text-on-surface">{nodes.length} Nodes</span>
+          </div>
+          <div className="flex gap-1.5">
+            {critCount > 0 && <span className="font-label text-[10px] px-2 py-1 bg-error-container text-on-error-container rounded-md font-bold">{critCount} CRIT</span>}
+            {warnCount > 0 && <span className="font-label text-[10px] px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-bold">{warnCount} WARN</span>}
           </div>
         </div>
 
@@ -72,14 +63,14 @@ export default function DashboardPage() {
         {/* Map */}
         <div className="h-[360px] relative bg-surface-container overflow-hidden shrink-0">
           {/* Overlay chips */}
-          <div className="absolute top-3 left-3 z-10 flex gap-2 items-center">
-            <div className="bg-white/90 backdrop-blur text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm border border-outline-variant/20">
-              Hyderabad Sewage Network
-            </div>
-            <div className="bg-white/90 backdrop-blur flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-label text-outline shadow-sm border border-outline-variant/20">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"/>
-              {nodes.filter(n=>n.status==="NORMAL").length} normal
-              {critCount>0 && <><span className="text-outline-variant">·</span><span className="text-error font-semibold">{critCount} critical</span></>}
+          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-2">
+            <div className="bg-white/95 backdrop-blur text-xs font-semibold px-3 py-2 rounded-lg shadow border border-outline-variant/20 flex flex-col gap-1.5">
+              <span>Hyderabad Sewage Network</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-label text-outline">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"/>
+                {nodes.filter(n=>n.status==="NORMAL").length} normal
+                {critCount>0 && <><span className="text-outline-variant">·</span><span className="text-error font-semibold">{critCount} critical</span></>}
+              </div>
             </div>
           </div>
           <div className="absolute top-3 right-3 z-10 flex gap-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg text-[10.5px] font-label shadow-sm border border-outline-variant/20">
@@ -126,15 +117,15 @@ export default function DashboardPage() {
                 <span className={`text-[9px] px-1.5 py-0.5 rounded font-label font-semibold ${statusBg(n.status)}`}>{n.status}</span>
               </div>
               <div className="p-3">
-                <div className="grid grid-cols-3 gap-2 mb-2.5">
+                <div className="flex flex-col gap-1.5 mb-3">
                   {[
                     { l:"LEVEL", v:`${n.level.toFixed(1)}`, u:"cm", c:statusHex(n.status) },
                     { l:"GAS",   v:n.gas, u:"ADC", c:n.gas>=GAS_LIMIT?"#ba1a1a":n.gas>=GAS_LIMIT*.75?"#d97706":"#1a1c1c" },
                     { l:"PUMP",  v:n.pump, u:"", c:n.pump==="ON"?"#16a34a":"#737686" },
                   ].map(r => (
-                    <div key={r.l}>
-                      <div className="font-label text-[8.5px] text-outline uppercase tracking-wider mb-0.5">{r.l}</div>
-                      <div className="font-label text-sm font-bold" style={{ color:r.c }}>{r.v}<span className="text-[9px] text-outline font-normal">{r.u}</span></div>
+                    <div key={r.l} className="flex justify-between items-end">
+                      <div className="font-label text-[9px] text-outline uppercase tracking-wider">{r.l}</div>
+                      <div className="font-label text-xs font-bold" style={{ color:r.c }}>{r.v} <span className="text-[9px] text-outline font-normal">{r.u}</span></div>
                     </div>
                   ))}
                 </div>
@@ -146,9 +137,9 @@ export default function DashboardPage() {
       </section>
 
       {/* RIGHT sidebar */}
-      <aside className="w-[256px] bg-surface-container-low border-l border-outline-variant/10 overflow-y-auto custom-scrollbar shrink-0">
+      <aside className="w-[256px] bg-surface-container-low border-l border-outline-variant/10 overflow-y-auto custom-scrollbar shrink-0 flex flex-col gap-6 p-5">
         {sel ? (
-          <div className="border-b border-outline-variant/10 bg-surface-container-lowest">
+          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
             <div className="p-4">
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -182,63 +173,100 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="p-4 border-b border-outline-variant/10">
+          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 shadow-sm">
             <p className="font-label text-[10.5px] text-outline leading-relaxed">Click any node on the map to inspect live sensor data.</p>
           </div>
         )}
 
-        <div className="p-4 border-b border-outline-variant/10">
+        <div>
           <div className="flex justify-between items-center mb-3">
             <span className="font-label text-[10px] font-bold uppercase tracking-wider text-outline">Active Alerts</span>
-            {critCount>0 && <span className="font-label text-[9px] px-1.5 py-0.5 bg-error-container text-on-error-container rounded">LIVE</span>}
+            {critCount>0 && <span className="font-label text-[9px] px-1.5 py-0.5 bg-error-container text-on-error-container rounded font-bold">LIVE</span>}
           </div>
-          {nodes.filter(n=>n.status!=="NORMAL").length===0
-            ? <p className="font-label text-[10.5px] text-outline">All nodes operating normally.</p>
-            : nodes.filter(n=>n.status!=="NORMAL").map(n => (
-              <div key={n.id} onClick={()=>setSelId(n.id===selId?null:n.id)}
-                className="flex gap-2 py-2.5 border-b border-outline-variant/10 cursor-pointer hover:bg-surface-container-low -mx-1 px-1 rounded transition-colors last:border-0">
-                <div className="w-0.5 rounded-full self-stretch" style={{ background:statusHex(n.status) }}/>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-on-surface truncate">{n.name}</div>
-                  <div className="font-label text-[10px] text-outline mt-0.5">{n.level.toFixed(1)} cm · {n.gas} ADC</div>
+          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-3 shadow-sm">
+            {nodes.filter(n=>n.status!=="NORMAL").length===0
+              ? <p className="font-label text-[10.5px] text-outline">All nodes operating normally.</p>
+              : nodes.filter(n=>n.status!=="NORMAL").map(n => (
+                <div key={n.id} onClick={()=>setSelId(n.id===selId?null:n.id)}
+                  className="flex gap-2 py-2 border-b border-outline-variant/10 cursor-pointer hover:bg-surface-container-low transition-colors last:border-0">
+                  <div className="w-1 rounded-full self-stretch" style={{ background:statusHex(n.status) }}/>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-on-surface truncate">{n.name}</div>
+                    <div className="font-label text-[10px] text-outline mt-0.5">{n.level.toFixed(1)} cm · {n.gas} ADC</div>
+                  </div>
                 </div>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-label font-semibold self-start ${statusBg(n.status)}`}>{n.status}</span>
+              ))
+            }
+          </div>
+        </div>
+        
+        {/* Live Weather Alerts */}
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <span className="font-label text-[10px] font-bold uppercase tracking-wider text-outline">Meteorological Alerts</span>
+            {rainfall.some(r => r.mm >= 15) ? (
+              <span className="font-label text-[9px] px-1.5 py-0.5 bg-error-container text-on-error-container rounded animate-pulse font-bold">LIVE</span>
+            ) : (
+              <span className="font-label text-[9px] px-1.5 py-0.5 bg-green-50 text-green-700 rounded font-bold">CLEAR</span>
+            )}
+          </div>
+          {weatherLoading ? (
+            <p className="font-label text-[10.5px] text-outline">Fetching latest IMD bulletins...</p>
+          ) : rainfall.some(r => r.mm >= 15) ? (
+            <div className="bg-error-container/50 border border-error/20 p-3 rounded-xl shadow-sm">
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-error text-[16px] mt-0.5">thunderstorm</span>
+                <div>
+                  <div className="text-xs font-bold text-on-error-container">Heavy Rainfall Advisory</div>
+                  <p className="font-label text-[9px] text-on-error-container/80 mt-1 leading-relaxed">
+                    IMD Alert: Heavy to very heavy rainfall predicted in the next 0-3 hours. High risk of localized urban flooding. Emergency crews advised to standby.
+                  </p>
+                </div>
               </div>
-            ))
-          }
+            </div>
+          ) : (
+            <div className="bg-surface-container-lowest border border-outline-variant/20 p-3 rounded-xl flex gap-2 items-center shadow-sm">
+               <span className="material-symbols-outlined text-green-600 text-[16px]">cloud_done</span>
+               <p className="font-label text-[10.5px] text-outline">No severe weather warnings for Hyderabad region.</p>
+            </div>
+          )}
         </div>
 
-        <div className="p-4 border-b border-outline-variant/10">
+        <div>
           <span className="font-label text-[10px] font-bold uppercase tracking-wider text-outline block mb-3">Rainfall Forecast</span>
-          {RAINFALL.map(r => (
-            <div key={r.label} className="flex justify-between items-center py-1.5 border-b border-outline-variant/10 last:border-0">
-              <span className="text-xs text-on-surface-variant">{r.label}</span>
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-1 bg-surface-container-high rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width:`${Math.min(r.mm/35*100,100)}%`, background:r.color }}/>
+          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-3 shadow-sm">
+            {rainfall.map(r => (
+              <div key={r.label} className="flex justify-between items-center py-1.5 border-b border-outline-variant/10 last:border-0">
+                <span className="text-xs text-on-surface-variant">{r.label}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width:`${Math.min(r.mm/35*100,100)}%`, background:r.color }}/>
+                  </div>
+                  <span className="font-label text-[10px] font-bold w-9 text-right" style={{ color:r.color }}>{r.mm}mm</span>
                 </div>
-                <span className="font-label text-[10.5px] font-semibold w-9 text-right" style={{ color:r.color }}>{r.mm}mm</span>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <div className="p-4">
+        <div>
           <span className="font-label text-[10px] font-bold uppercase tracking-wider text-outline block mb-3">Field Crews</span>
-          {CREWS.map(c => (
-            <div key={c.id} className="flex justify-between items-center py-2 border-b border-outline-variant/10 last:border-0">
-              <div>
-                <div className="text-xs font-semibold text-on-surface">{c.name}</div>
-                <div className="font-label text-[9.5px] text-outline">Team {c.team}</div>
+          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-3 shadow-sm">
+            {CREWS.map(c => (
+              <div key={c.id} className="flex justify-between items-center py-2 border-b border-outline-variant/10 last:border-0">
+                <div>
+                  <div className="text-xs font-semibold text-on-surface">{c.name}</div>
+                  <div className="font-label text-[9.5px] text-outline">Team {c.team}</div>
+                </div>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded font-label font-semibold
+                  ${c.status==="ON_SITE"?"bg-error-container text-on-error-container":
+                    c.status==="DISPATCHED"?"bg-amber-100 text-amber-700":
+                    c.status==="RESOLVED"?"bg-green-50 text-green-700":"bg-surface-container text-outline"}`}>
+                  {c.status.replace("_"," ")}
+                </span>
               </div>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded font-label font-semibold
-                ${c.status==="ON_SITE"?"bg-error-container text-on-error-container":
-                  c.status==="DISPATCHED"?"bg-amber-100 text-amber-700":
-                  c.status==="RESOLVED"?"bg-green-50 text-green-700":"bg-surface-container text-outline"}`}>
-                {c.status.replace("_"," ")}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </aside>
     </div>

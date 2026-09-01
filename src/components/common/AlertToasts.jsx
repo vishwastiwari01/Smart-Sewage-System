@@ -9,7 +9,7 @@ export default function AlertToasts({ alerts = [], onDismiss }) {
 
   if (!alerts.length) return null;
   return (
-    <div className="fixed top-14 right-4 z-[999] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-[999] flex flex-col-reverse gap-2 pointer-events-none">
       {alerts.slice(0,3).map(a => (
         <div key={a.id} onClick={() => onDismiss(a.id)}
           className={`pointer-events-auto max-w-xs p-3 pr-8 rounded-lg shadow-lg border-l-4 bg-white cursor-pointer relative group

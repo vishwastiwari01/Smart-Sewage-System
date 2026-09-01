@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-const NAV = [
+const PRIMARY_NAV = [
   { to:"/dashboard",    label:"Dashboard",    icon:"dashboard" },
   { to:"/incidents",    label:"Incidents",    icon:"warning" },
   { to:"/ai",           label:"AI Predict",   icon:"psychology" },
   { to:"/analytics",    label:"Analytics",    icon:"bar_chart" },
-  { to:"/safety",       label:"Safety",       icon:"health_and_safety" },
   { to:"/twin",         label:"Digital Twin", icon:"hub" },
+];
+
+const MORE_NAV = [
+  { to:"/safety",       label:"Safety",       icon:"health_and_safety" },
   { to:"/sim",          label:"ESP32 Sim",    icon:"memory" },
   { to:"/messages",     label:"Messages",     icon:"campaign" },
   { to:"/architecture", label:"Architecture", icon:"schema" },
@@ -15,6 +18,7 @@ const NAV = [
 
 export default function TopBar({ critCount = 0, warnCount = 0, user, onLogout }) {
   const [clock, setClock] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export default function TopBar({ critCount = 0, warnCount = 0, user, onLogout })
         </NavLink>
         <div className="h-4 w-px bg-outline-variant/30"/>
         <nav className="flex items-center gap-0.5 overflow-x-auto custom-scrollbar">
-          {NAV.map(n => (
+          {PRIMARY_NAV.map(n => (
             <NavLink key={n.to} to={n.to}
               className={({ isActive }) =>
                 `flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-medium rounded-md transition-all whitespace-nowrap
@@ -46,6 +50,26 @@ export default function TopBar({ critCount = 0, warnCount = 0, user, onLogout })
               {n.label}
             </NavLink>
           ))}
+          <div className="relative" onMouseLeave={() => setMoreOpen(false)}>
+            <button onMouseEnter={() => setMoreOpen(true)}
+              className="flex items-center gap-1 px-3 py-1.5 text-[11.5px] font-medium rounded-md text-on-surface-variant hover:bg-surface-container-low transition-all">
+              More <span className="material-symbols-outlined text-[14px]">expand_more</span>
+            </button>
+            {moreOpen && (
+              <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-outline-variant/20 shadow-lg rounded-xl overflow-hidden py-1">
+                {MORE_NAV.map(n => (
+                  <NavLink key={n.to} to={n.to} onClick={() => setMoreOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-4 py-2.5 text-[11.5px] font-medium transition-all
+                       ${isActive ? "bg-primary/5 text-primary" : "text-on-surface hover:bg-surface-container-low"}`
+                    }>
+                    <span className="material-symbols-outlined text-[16px]">{n.icon}</span>
+                    {n.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
 
